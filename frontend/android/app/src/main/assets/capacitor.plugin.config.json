@@ -1,0 +1,10 @@
+[
+  {
+    "pkg": "com.drishti.mesh.TestPlugin",
+    "classpath": "com.drishti.mesh.TestPlugin"
+  },
+  {
+    "pkg": "com.drishti.mesh.MeshPlugin",
+    "classpath": "com.drishti.mesh.MeshPlugin"
+  }
+]

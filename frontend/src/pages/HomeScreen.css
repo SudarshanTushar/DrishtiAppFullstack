@@ -1,0 +1,315 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOME SCREEN STYLES
+   ═══════════════════════════════════════════════════════════════════════════
+   
+   DESIGN PRINCIPLES:
+   - Emergency-optimized (stress, low light, one-handed)
+   - Large touch targets (min 60px)
+   - High contrast
+   - Clear visual hierarchy
+   
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.home-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  overflow-y: auto;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   STATUS BAR
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.status-bar {
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 2px solid rgba(148, 163, 184, 0.2);
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.time {
+  font-size: 20px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.status-indicators {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(71, 85, 105, 0.8);
+  color: #f1f5f9;
+  white-space: nowrap;
+}
+
+.status-badge.network-status {
+  /* Color set dynamically via style prop */
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+}
+
+.status-description {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   MAIN CONTENT
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.home-content {
+  flex: 1;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.app-title {
+  text-align: center;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.app-title h1 {
+  font-size: 36px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.app-title .subtitle {
+  font-size: 16px;
+  color: #94a3b8;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   ACTION BUTTONS
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.action-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 100px;
+  padding: 20px;
+  border: none;
+  border-radius: 16px;
+
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  color: #ffffff;
+  font-family: inherit;
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.action-button:active {
+  transform: scale(0.97);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Emergency button (RED, LARGEST) */
+.action-button.emergency-button {
+  min-height: 140px;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  box-shadow:
+    0 6px 20px rgba(220, 38, 38, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.action-button.emergency-button:active {
+  box-shadow:
+    0 3px 12px rgba(220, 38, 38, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.button-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.emergency-button .button-icon {
+  font-size: 64px;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.button-label {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.button-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+}
+
+.button-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #10b981;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Quick actions grid */
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.quick-actions .action-button {
+  min-height: 120px;
+}
+
+.quick-actions .button-icon {
+  font-size: 40px;
+}
+
+.quick-actions .button-label {
+  font-size: 16px;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SECONDARY ACTIONS
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.secondary-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.secondary-button {
+  flex: 1;
+  padding: 16px;
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  background: rgba(51, 65, 85, 0.5);
+  color: #cbd5e1;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondary-button:active {
+  background: rgba(51, 65, 85, 0.7);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SYSTEM INFO
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.system-info {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.info-label {
+  color: #94a3b8;
+}
+
+.info-value {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SAFE AREA
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.bottom-safe-area {
+  height: env(safe-area-inset-bottom, 0px);
+  background: #0f172a;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   ANIMATIONS
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.6));
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   RESPONSIVE
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 360px) {
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .button-icon {
+    font-size: 36px;
+  }
+
+  .button-label {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 600px) {
+  .home-content {
+    max-width: 500px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}

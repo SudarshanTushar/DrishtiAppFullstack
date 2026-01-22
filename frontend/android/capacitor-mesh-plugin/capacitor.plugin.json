@@ -1,0 +1,17 @@
+{
+  "android": {
+    "src": "src/main"
+  },
+  "capacitor": {
+    "plugins": [
+      {
+        "name": "TestPlugin",
+        "className": "com.drishti.mesh.TestPlugin"
+      },
+      {
+        "name": "MeshNetwork",
+        "className": "com.drishti.mesh.MeshPlugin"
+      }
+    ]
+  }
+}
