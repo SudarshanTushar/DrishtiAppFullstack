@@ -12,33 +12,18 @@ import {
   AlertTriangle,
   Globe,
   MapPin,
+  Signal,
+  Wifi,
+  Database,
+  Brain,
+  ShieldHalf,
+  ArrowRight,
 } from "lucide-react";
 import { safeFetch } from "../config";
 import { Link } from "react-router-dom";
 import { voiceService } from "../services/voiceService";
 import { offlineService } from "../services/offlineService";
-
-// Simple Translation Dictionary
-const DICTIONARY = {
-  en: {
-    status: "Status",
-    monitor: "Monitoring Sector",
-    rain: "Rainfall",
-    seismic: "Seismic",
-    pack: "Offline Pack",
-    admin: "Admin Node",
-    alert: "Emergency Broadcast",
-  },
-  hi: {
-    status: "स्थिति",
-    monitor: "निगरानी क्षेत्र",
-    rain: "वर्षा",
-    seismic: "भूकंपीय",
-    pack: "ऑफलाइन पैक",
-    admin: "एडमिन नोड",
-    alert: "आपातकालीन प्रसारण",
-  },
-};
+import { useI18n, languages } from "../i18n.jsx";
 
 const Dashboard = () => {
   const [iotData, setIotData] = useState(null);
@@ -49,20 +34,26 @@ const Dashboard = () => {
   const [voiceResult, setVoiceResult] = useState(null);
   const [packStatus, setPackStatus] = useState(offlineService.getStatus());
   const [activeAlert, setActiveAlert] = useState(null);
+  const [readiness, setReadiness] = useState(null);
+  const [statusMeta, setStatusMeta] = useState({
+    label: "SCANNING",
+    tone: "from-blue-600 to-indigo-700",
+    riskIndex: null,
+    confidence: null,
+    reason: "Awaiting sensor data",
+  });
 
-  // NEW: Feature States
-  const [lang, setLang] = useState("en"); // 'en' or 'hi'
+  const { t, lang, setLang } = useI18n();
   const [missionActive, setMissionActive] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchReadiness();
     // Check for active mission
     if (localStorage.getItem("drishti_mission_active") === "true") {
       setMissionActive(true);
     }
   }, []);
-
-  const t = DICTIONARY[lang]; // Helper for translation
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,16 +61,29 @@ const Dashboard = () => {
     try {
       const data = await safeFetch("/iot/feed");
       setIotData(data || { rain: "--", seismic: "--", status: "Offline" });
-      if (data && data.status === "CRITICAL") {
-        setActiveAlert("FLASH FLOOD WARNING: Seek high ground immediately.");
-      } else {
-        setActiveAlert(null);
-      }
+      const meta = deriveStatusMeta(data);
+      setStatusMeta(meta);
+      setActiveAlert(meta.label === "CRITICAL ALERT" ? meta.reason : null);
       setLastSync(new Date());
     } catch (err) {
       setError("Failed to sync sensors. Working from cached/offline data.");
     }
     setLoading(false);
+  };
+
+  const fetchReadiness = async () => {
+    const readinessData = await safeFetch("/system/readiness");
+    if (readinessData) {
+      setReadiness(readinessData);
+      return;
+    }
+    setReadiness({
+      network_status: null,
+      sensors_status: null,
+      ai_models_status: null,
+      offline_pack_status: packStatus,
+      overall_readiness: null,
+    });
   };
 
   const downloadPack = async () => {
@@ -107,12 +111,133 @@ const Dashboard = () => {
     }, 2000);
   };
 
-  const toggleLang = () => setLang((l) => (l === "en" ? "hi" : "en"));
+  const cycleLang = () => {
+    const idx = languages.findIndex((l) => l.code === lang);
+    const next = languages[(idx + 1) % languages.length];
+    setLang(next.code);
+  };
+
+  const parseNumber = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    const cleaned = String(value).replace(/[^0-9.\-]/g, "");
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const deriveStatusMeta = (data) => {
+    const rainVal = parseNumber(data?.rain);
+    const seismicVal = parseNumber(data?.seismic);
+    const explicitRisk = parseNumber(data?.risk_index);
+    const computedRisk = (() => {
+      if (explicitRisk !== null) return explicitRisk;
+      const rainRisk = rainVal !== null ? Math.min(100, rainVal * 3) : 0;
+      const seismicRisk =
+        seismicVal !== null ? Math.min(100, seismicVal * 15) : 0;
+      const combined = Math.max(rainRisk, seismicRisk);
+      return combined > 0 ? combined : null;
+    })();
+
+    const riskIndex = computedRisk !== null ? Math.round(computedRisk) : null;
+    const confidence = data?.confidence_score ?? data?.confidence ?? null;
+    const reasonFromFeed = data?.reason || data?.status_reason;
+
+    const reason = (() => {
+      if (reasonFromFeed) return reasonFromFeed;
+      if (seismicVal !== null && seismicVal >= 4) return "Seismic instability";
+      if (rainVal !== null && rainVal >= 20) return "Severe rainfall";
+      if (rainVal !== null || seismicVal !== null) return "Stable conditions";
+      return "Awaiting sensor data";
+    })();
+
+    const label = (() => {
+      if (data?.status && data.status.toUpperCase() === "CRITICAL")
+        return "CRITICAL ALERT";
+      if (riskIndex !== null && riskIndex >= 80) return "CRITICAL ALERT";
+      if (riskIndex !== null && riskIndex >= 50) return "HEIGHTENED WATCH";
+      if (riskIndex !== null) return "ALL CLEAR";
+      return "SCANNING";
+    })();
+
+    const tone = (() => {
+      if (label === "CRITICAL ALERT") return "from-red-600 to-rose-700";
+      if (label === "HEIGHTENED WATCH") return "from-amber-500 to-orange-600";
+      if (label === "ALL CLEAR") return "from-emerald-500 to-teal-600";
+      return "from-blue-600 to-indigo-700";
+    })();
+
+    return { label, tone, riskIndex, confidence, reason };
+  };
+
+  const interpretRainRisk = (val) => {
+    if (val === null) return { label: "Unknown", intent: "text-slate-500" };
+    if (val >= 25)
+      return { label: "Flash flood likely", intent: "text-red-600" };
+    if (val >= 10)
+      return { label: "Heavy rainfall watch", intent: "text-amber-600" };
+    return { label: "Low precipitation", intent: "text-emerald-600" };
+  };
+
+  const interpretSeismic = (val) => {
+    if (val === null)
+      return {
+        stability: "Unknown",
+        aftershock: "N/A",
+        intent: "text-slate-500",
+      };
+    if (val >= 6)
+      return {
+        stability: "Severe instability",
+        aftershock: "High",
+        intent: "text-red-600",
+      };
+    if (val >= 4)
+      return {
+        stability: "Moderate instability",
+        aftershock: "Medium",
+        intent: "text-amber-600",
+      };
+    if (val >= 2)
+      return {
+        stability: "Stable",
+        aftershock: "Low",
+        intent: "text-emerald-600",
+      };
+    return {
+      stability: "Quiet",
+      aftershock: "Minimal",
+      intent: "text-emerald-600",
+    };
+  };
+
+  const readinessItem = (label, value, icon, fallback = "Unknown") => {
+    const display = value ?? fallback;
+    const ok =
+      typeof display === "string"
+        ? display.toLowerCase() === "ok" || display.toLowerCase() === "active"
+        : false;
+    const color = display
+      ? ok
+        ? "text-emerald-600"
+        : "text-slate-800"
+      : "text-slate-500";
+    return (
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2 text-slate-600">
+          {icon}
+          <span className="font-semibold">{label}</span>
+        </div>
+        <span className={`font-bold ${color}`}>{display || fallback}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700 pb-20">
       {/* STATUS HEADER */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+      <div
+        className={`bg-gradient-to-br ${statusMeta.tone} p-6 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden`}
+      >
         <div className="flex justify-between items-start mb-4 relative z-10">
           <div className="flex items-center gap-3">
             <ShieldCheck size={32} className="opacity-90" />
@@ -124,7 +249,7 @@ const Dashboard = () => {
             </Link>
             {/* Language Toggle */}
             <button
-              onClick={toggleLang}
+              onClick={cycleLang}
               className="bg-white/20 p-2 rounded-full hover:bg-white/30 active:scale-95 transition-all flex items-center gap-1"
             >
               <Globe size={16} className="text-white" />
@@ -144,12 +269,40 @@ const Dashboard = () => {
             {loading ? "Syncing..." : "Live"}
           </button>
         </div>
-        <h2 className="text-2xl font-bold relative z-10">
-          {t.status}: {iotData?.status || "Scanning..."}
-        </h2>
-        <p className="opacity-80 text-sm relative z-10">
-          {t.monitor}: NE-Alpha
-        </p>
+        <div className="flex flex-col gap-1 relative z-10">
+          <div className="flex items-center gap-2 text-xs uppercase font-black tracking-widest opacity-80">
+            <ShieldHalf size={16} />
+            {t("dashboard.status")}
+          </div>
+          <h2 className="text-3xl font-extrabold">{statusMeta.label}</h2>
+          <p className="opacity-80 text-sm">
+            {t("dashboard.monitor")}: NE-Alpha
+          </p>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 relative z-10 text-white/90">
+          <div className="bg-white/10 rounded-2xl p-3">
+            <p className="text-[10px] uppercase font-bold opacity-80">
+              Risk Index
+            </p>
+            <p className="text-2xl font-black">{statusMeta.riskIndex ?? "—"}</p>
+          </div>
+          <div className="bg-white/10 rounded-2xl p-3">
+            <p className="text-[10px] uppercase font-bold opacity-80">
+              Confidence
+            </p>
+            <p className="text-2xl font-black">
+              {statusMeta.confidence !== null
+                ? `${statusMeta.confidence}%`
+                : "—"}
+            </p>
+          </div>
+          <div className="bg-white/10 rounded-2xl p-3">
+            <p className="text-[10px] uppercase font-bold opacity-80">Reason</p>
+            <p className="text-sm font-semibold leading-tight">
+              {statusMeta.reason}
+            </p>
+          </div>
+        </div>
         {lastSync && (
           <p className="opacity-70 text-[11px] relative z-10">
             Last sync: {lastSync.toLocaleTimeString()}
@@ -193,67 +346,176 @@ const Dashboard = () => {
           <AlertTriangle className="text-white shrink-0" size={24} />
           <div>
             <p className="text-xs font-black uppercase tracking-widest opacity-80">
-              {t.alert}
+              {t("dashboard.alert")}
             </p>
             <p className="font-bold text-sm leading-tight">{activeAlert}</p>
           </div>
         </div>
       )}
 
-      {/* ACTION ROW */}
+      {/* STATUS + ACTIONS ROW */}
       <div className="grid grid-cols-2 gap-3 px-1">
-        <button
-          onClick={downloadPack}
-          disabled={loading}
-          className={`bg-slate-800 text-white p-3 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-transform ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
-        >
-          <Download
-            size={18}
-            className={packStatus ? "text-green-400" : "text-white"}
-          />
-          <div className="text-left leading-tight">
-            <span className="block text-xs font-bold">
-              {packStatus ? "Offline Pack Ready" : t.pack}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-500 uppercase">
+              Monitoring Sector
             </span>
-            {packStatus ? (
-              <span className="block text-[8px] text-green-400 font-bold tracking-wider">
-                INSTALLED
-              </span>
-            ) : (
-              <span className="block text-[9px] text-slate-200">
-                Tap to download for offline
-              </span>
-            )}
+            <span className="text-[11px] font-bold text-slate-600">
+              NE-Alpha
+            </span>
           </div>
-        </button>
-        <Link
-          to="/admin"
-          className="bg-white border border-slate-200 text-slate-700 p-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
-        >
-          <Shield size={18} />
-          <span className="text-xs font-bold">{t.admin}</span>
-        </Link>
+          <div className="space-y-2 text-sm text-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Terrain</span>
+              <span className="font-bold">
+                {iotData?.terrain_type || "Unknown"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Population Exposure</span>
+              <span className="font-bold">
+                {iotData?.population_exposure || "No data"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Evac Routes</span>
+              <span className="font-bold">
+                {iotData?.evac_routes || "Unavailable"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-rows-2 gap-3">
+          <button
+            onClick={downloadPack}
+            disabled={loading}
+            className={`bg-slate-900 text-white p-3 rounded-2xl flex items-center justify-between gap-3 active:scale-95 transition-transform ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            <div className="flex items-center gap-3">
+              <Download
+                size={18}
+                className={packStatus ? "text-emerald-400" : "text-white"}
+              />
+              <div className="text-left leading-tight">
+                <span className="block text-xs font-bold">
+                  {packStatus ? "Offline Pack Ready" : t("dashboard.pack")}
+                </span>
+                {packStatus ? (
+                  <span className="block text-[9px] text-emerald-300 font-bold tracking-wider">
+                    INSTALLED
+                  </span>
+                ) : (
+                  <span className="block text-[9px] text-slate-200">
+                    Tap to download for offline
+                  </span>
+                )}
+              </div>
+            </div>
+            <ArrowRight size={14} />
+          </button>
+          <Link
+            to="/admin"
+            className="bg-white border border-slate-200 text-slate-700 p-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <Shield size={18} />
+            <span className="text-xs font-bold">{t("dashboard.admin")}</span>
+          </Link>
+        </div>
       </div>
 
       {/* SENSORS */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <CloudRain className="text-blue-500 mb-2" />
-          <p className="text-[10px] text-slate-400 uppercase font-black">
-            {t.rain}
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <CloudRain className="text-blue-500" />
+            <span className="text-[11px] font-black text-slate-500 uppercase">
+              {t("dashboard.rain")}
+            </span>
+          </div>
+          <p className="text-2xl font-black text-slate-900">
+            {loading ? "…" : iotData?.rain || "—"}
           </p>
-          <p className="text-xl font-bold text-slate-800">
-            {loading ? "…" : iotData?.rain || "0mm"}
-          </p>
+          {(() => {
+            const rainVal = parseNumber(iotData?.rain);
+            const rainMeta = interpretRainRisk(rainVal);
+            return (
+              <div className="text-sm text-slate-700">
+                <p className={`font-semibold ${rainMeta.intent}`}>
+                  {rainMeta.label}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Next 6h:{" "}
+                  {iotData?.rain_forecast?.next6h || "No forecast data"}
+                </p>
+              </div>
+            );
+          })()}
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <Activity className="text-emerald-500 mb-2" />
-          <p className="text-[10px] text-slate-400 uppercase font-black">
-            {t.seismic}
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <Activity className="text-emerald-500" />
+            <span className="text-[11px] font-black text-slate-500 uppercase">
+              {t("dashboard.seismic")}
+            </span>
+          </div>
+          <p className="text-2xl font-black text-slate-900">
+            {loading ? "…" : iotData?.seismic || "—"}
           </p>
-          <p className="text-xl font-bold text-slate-800">
-            {loading ? "…" : iotData?.seismic || "0.0 M"}
-          </p>
+          {(() => {
+            const seismicVal = parseNumber(iotData?.seismic);
+            const sMeta = interpretSeismic(seismicVal);
+            return (
+              <div className="text-sm text-slate-700">
+                <p className={`font-semibold ${sMeta.intent}`}>
+                  {sMeta.stability}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Aftershock probability: {sMeta.aftershock}
+                </p>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* SYSTEM READINESS */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-slate-700 font-black uppercase text-[11px]">
+            <Signal size={16} />
+            System Readiness
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-500 font-semibold">Overall</p>
+            <p className="text-2xl font-black text-slate-900">
+              {readiness?.overall_readiness !== null &&
+              readiness?.overall_readiness !== undefined
+                ? `${readiness.overall_readiness}%`
+                : "—"}
+            </p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {readinessItem(
+            "Network",
+            readiness?.network_status,
+            <Wifi size={16} className="text-slate-500" />,
+          )}
+          {readinessItem(
+            "Sensors",
+            readiness?.sensors_status,
+            <Activity size={16} className="text-slate-500" />,
+          )}
+          {readinessItem(
+            "AI Models",
+            readiness?.ai_models_status,
+            <Brain size={16} className="text-slate-500" />,
+          )}
+          {readinessItem(
+            "Offline Pack",
+            readiness?.offline_pack_status || packStatus,
+            <Database size={16} className="text-slate-500" />,
+          )}
         </div>
       </div>
 

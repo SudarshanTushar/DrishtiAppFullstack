@@ -15,6 +15,7 @@ import {
   Activity,
   Cpu,
 } from "lucide-react";
+import { useI18n, languages } from "./i18n.jsx";
 
 // LAZY LOAD MODULES (Performance Firewall)
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -22,8 +23,10 @@ const MapView = lazy(() => import("./pages/MapView"));
 const NetworkView = lazy(() => import("./pages/NetworkView"));
 const SOSView = lazy(() => import("./pages/SOSView"));
 const AdminView = lazy(() => import("./pages/AdminView"));
+const SettingsView = lazy(() => import("./pages/SettingsView"));
 
 const App = () => {
+  const { t, lang, setLang, hasChosen } = useI18n();
   const [bootState, setBootState] = useState("BOOTING"); // BOOTING, WELCOME, READY
   const [logs, setLogs] = useState([]);
 
@@ -38,11 +41,11 @@ const App = () => {
     }
 
     const sequence = [
-      { text: "INITIALIZING ROUTE-AI KERNEL...", delay: 500 },
-      { text: "CONNECTING TO ISRO BHUVAN...", delay: 1200 },
-      { text: "FETCHING IMD WEATHER GRID...", delay: 2000 },
-      { text: "CALIBRATING TERRAIN SENSORS...", delay: 2800 },
-      { text: "SYSTEM SECURE.", delay: 3500 },
+      { text: t("app.boot.kernel"), delay: 500 },
+      { text: t("app.boot.bhuvan"), delay: 1200 },
+      { text: t("app.boot.imd"), delay: 2000 },
+      { text: t("app.boot.terrain"), delay: 2800 },
+      { text: t("app.boot.secure"), delay: 3500 },
     ];
 
     let timeouts = [];
@@ -60,12 +63,53 @@ const App = () => {
     timeouts.push(finalT);
 
     return () => timeouts.forEach(clearTimeout);
-  }, []);
+  }, [t]);
 
   const enterSystem = () => {
     sessionStorage.setItem("routeai_booted", "true");
     setBootState("READY");
   };
+
+  // LANGUAGE GATE BEFORE ANY UI
+  if (!hasChosen) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-6">
+        <div className="w-full max-w-md bg-slate-800/80 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black">
+              🌐
+            </div>
+            <div>
+              <p className="text-[11px] uppercase text-slate-400 font-bold">
+                RouteAI NE
+              </p>
+              <h2 className="text-xl font-black">{t("app.name")}</h2>
+            </div>
+          </div>
+          <p className="text-sm text-slate-300">Choose your app language</p>
+          <div className="grid grid-cols-2 gap-2">
+            {languages.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                className={`flex items-center justify-between px-3 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                  l.code === lang
+                    ? "border-blue-500 bg-blue-600/10 text-white"
+                    : "border-slate-600 bg-slate-800 text-slate-200 hover:border-blue-400"
+                }`}
+              >
+                <span>{l.label}</span>
+                {l.code === lang && <span className="text-[10px]">✓</span>}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400">
+            You can change this anytime in Settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // --- RENDER: BOOT SCREEN ---
   if (bootState === "BOOTING") {
@@ -73,7 +117,9 @@ const App = () => {
       <div className="h-screen bg-slate-950 text-green-500 font-mono p-8 flex flex-col justify-end pb-24">
         <div className="mb-4 flex items-center gap-2 text-blue-500 animate-pulse">
           <Cpu size={24} />
-          <span className="font-bold tracking-widest">BIOS v2.4.0</span>
+          <span className="font-bold tracking-widest">
+            {t("app.boot.bios")}
+          </span>
         </div>
         <div className="space-y-2 text-xs md:text-sm">
           {logs.map((log, i) => (
@@ -104,17 +150,17 @@ const App = () => {
 
           <div>
             <h1 className="text-4xl font-black tracking-tighter">
-              RouteAI<span className="text-blue-500">NE</span>
+              {t("app.name")}
+              <span className="text-blue-500">NE</span>
             </h1>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
-              Govt of India • North East Initiative
+              {t("app.welcomeTag")}
             </p>
           </div>
 
           <div className="bg-slate-800/50 backdrop-blur p-4 rounded-xl border border-slate-700 max-w-xs">
             <p className="text-xs text-slate-300 leading-relaxed">
-              "Providing terrain-aware, risk-weighted navigation for emergency
-              response in fragile zones."
+              {t("app.welcomeQuote")}
             </p>
           </div>
 
@@ -122,7 +168,7 @@ const App = () => {
             onClick={enterSystem}
             className="bg-white text-slate-900 px-8 py-4 rounded-xl font-bold flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl mt-4"
           >
-            Initialize Dashboard <ArrowRight size={18} />
+            {t("app.initButton")} <ArrowRight size={18} />
           </button>
         </div>
       </div>
@@ -139,16 +185,19 @@ const App = () => {
             <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
             <div>
               <h1 className="text-lg font-black text-slate-800 leading-none">
-                RouteAI<span className="text-blue-600">NE</span>
+                {t("app.name")}
+                <span className="text-blue-600">NE</span>
               </h1>
               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                Decision Support System
+                {t("app.subtitle")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 bg-green-50 px-2 py-1 rounded border border-green-100">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-bold text-green-700">ONLINE</span>
+            <span className="text-[10px] font-bold text-green-700">
+              {t("app.online")}
+            </span>
           </div>
         </header>
 
@@ -171,6 +220,7 @@ const App = () => {
               <Route path="/sos" element={<SOSView />} />
               <Route path="/admin" element={<AdminView />} />
               <Route path="/command" element={<AdminView />} />
+              <Route path="/settings" element={<SettingsView />} />
             </Routes>
           </Suspense>
         </main>
@@ -184,7 +234,7 @@ const App = () => {
             }
           >
             <LayoutDashboard size={22} />
-            <span className="text-[10px] font-bold">Status</span>
+            <span className="text-[10px] font-bold">{t("nav.status")}</span>
           </NavLink>
 
           <NavLink
@@ -194,7 +244,7 @@ const App = () => {
             }
           >
             <MapIcon size={22} />
-            <span className="text-[10px] font-bold">Route</span>
+            <span className="text-[10px] font-bold">{t("nav.route")}</span>
           </NavLink>
 
           <NavLink
@@ -213,7 +263,7 @@ const App = () => {
             }
           >
             <Radio size={22} />
-            <span className="text-[10px] font-bold">Mesh</span>
+            <span className="text-[10px] font-bold">{t("nav.mesh")}</span>
           </NavLink>
 
           <NavLink
@@ -223,7 +273,7 @@ const App = () => {
             }
           >
             <ShieldCheck size={22} />
-            <span className="text-[10px] font-bold">Cmd</span>
+            <span className="text-[10px] font-bold">{t("nav.cmd")}</span>
           </NavLink>
         </nav>
       </div>

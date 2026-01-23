@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Navigation,
   Shield,
@@ -12,13 +12,47 @@ import {
 } from "lucide-react";
 import MapboxMap from "../components/MapboxMap";
 import { API_BASE_URL } from "../config";
+import { useI18n } from "../i18n.jsx";
 
 // MAPBOX GEOCODING TOKEN
 const MAPBOX_TOKEN =
   import.meta.env.VITE_MAPBOX_TOKEN ||
   "pk.eyJ1IjoidHVzaGFyZ2FkaGUiLCJhIjoiY21rbnlpNjZqMDBtbDNmc2FmZW9idWwzdSJ9.5kKsUK-lEQmpM5kJrtvkDg";
 
-const MapView = () => {
+// Fetch real driving route from Mapbox Directions
+const fetchMapboxRoute = async (startCoords, destCoords) => {
+  const url =
+    `https://api.mapbox.com/directions/v5/mapbox/driving/` +
+    `${startCoords[1]},${startCoords[0]};${destCoords[1]},${destCoords[0]}?` +
+    `geometries=geojson&overview=full&alternatives=false&access_token=${MAPBOX_TOKEN}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!resp.ok) throw new Error(`Directions failed: ${resp.status}`);
+    const data = await resp.json();
+    const route = data?.routes?.[0];
+    if (!route?.geometry?.coordinates?.length)
+      throw new Error("No route returned");
+    return {
+      feature: {
+        type: "Feature",
+        geometry: route.geometry,
+        properties: {},
+      },
+      distanceKm: route.distance ? route.distance / 1000 : null,
+    };
+  } catch (err) {
+    console.warn("Mapbox directions error", err);
+    clearTimeout(timeoutId);
+    return { feature: null, distanceKm: null };
+  }
+};
+
+function MapView() {
+  const { t } = useI18n();
   // Core state
   const [startLocation, setStartLocation] = useState("");
   const [destination, setDestination] = useState("");
@@ -41,10 +75,27 @@ const MapView = () => {
   const [safetyReport, setSafetyReport] = useState(null);
   const [routeGeoJSON, setRouteGeoJSON] = useState(null);
   const [scanError, setScanError] = useState(null);
+  const [offlineMode, setOfflineMode] = useState(!navigator.onLine);
+  const [hasRealRoute, setHasRealRoute] = useState(false);
+
+  // UI flow state machine: idle -> analyzing -> analyzed -> navigating
+  const [uiState, setUiState] = useState("idle");
 
   // Navigation state
   const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationProgress, setNavigationProgress] = useState(0);
+  const navigationTimerRef = useRef(null);
   const [mapStyle, setMapStyle] = useState("streets");
+
+  // Cleanup navigation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimerRef.current) {
+        clearInterval(navigationTimerRef.current);
+        navigationTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Get current location on mount
   useEffect(() => {
@@ -63,9 +114,35 @@ const MapView = () => {
     }
   }, [useCurrentLocation]);
 
-  // ====================
+  // Listen for offline/online and load cached route for offline rendering
+  useEffect(() => {
+    const handleOffline = () => setOfflineMode(true);
+    const handleOnline = () => setOfflineMode(false);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    const cached = localStorage.getItem("routeai_last_route");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.route) setRouteGeoJSON(parsed.route);
+        if (parsed.report) setSafetyReport(parsed.report);
+        if (parsed.startCoords) setStartCoords(parsed.startCoords);
+        if (parsed.destCoords) setDestCoords(parsed.destCoords);
+        if (parsed.hasRealRoute) setHasRealRoute(true);
+        if (parsed.report) setUiState("analyzed");
+      } catch (e) {
+        console.warn("Failed to read cached route", e);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
   // MAPBOX GEOCODING SEARCH
-  // ====================
   const searchMapboxLocation = async (query, isStart) => {
     if (!query || query.length < 3) {
       if (isStart) {
@@ -85,10 +162,7 @@ const MapView = () => {
     try {
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-          `access_token=${MAPBOX_TOKEN}&` +
-          `country=IN&` +
-          `limit=6&` +
-          `types=place,locality,neighborhood,address,poi`,
+          `access_token=${MAPBOX_TOKEN}&country=IN&limit=6&types=place,locality,neighborhood,address,poi`,
       );
 
       const data = await response.json();
@@ -139,7 +213,7 @@ const MapView = () => {
   const selectLocation = (suggestion, isStart) => {
     if (isStart) {
       setStartLocation(suggestion.name);
-      setStartCoords([suggestion.center[1], suggestion.center[0]]); // Convert to [lat, lng]
+      setStartCoords([suggestion.center[1], suggestion.center[0]]);
       setShowStartSuggestions(false);
       setUseCurrentLocation(false);
     } else {
@@ -163,87 +237,14 @@ const MapView = () => {
     setDestSuggestions([]);
   };
 
-  // ====================
-  // SAFETY SCAN (CORE FEATURE)
-  // ====================
-  const runSafetyScan = async () => {
-    setScanningRoute(true);
-    setSafetyReport(null);
-    setScanError(null);
-
-    // Pre-compute straight-line distance as a fallback (in km)
-    const fallbackDistanceKm = getDistanceKm(startCoords, destCoords);
-
-    try {
-      // Call backend /analyze endpoint
-      const response = await fetch(
-        `${API_BASE_URL}/analyze?` +
-          `start_lat=${startCoords[0]}&` +
-          `start_lng=${startCoords[1]}&` +
-          `end_lat=${destCoords[0]}&` +
-          `end_lng=${destCoords[1]}`,
-      );
-
-      const data = await response.json();
-
-      // Normalize distance display
-      const normalizedDistance = (() => {
-        const raw = data.distance;
-        const numeric = parseFloat(raw);
-        if (!Number.isNaN(numeric) && numeric > 0) {
-          return `${numeric.toFixed(1)} km`;
-        }
-        return `${fallbackDistanceKm.toFixed(1)} km`;
-      })();
-
-      // Build comprehensive safety report with all risk factors
-      const report = {
-        riskLevel: data.route_risk || "UNKNOWN",
-        riskScore: data.confidence_score || 0,
-        reason: data.reason || "No risk data available",
-        source: data.source || "System",
-        distance: normalizedDistance,
-        terrainType: data.terrain_data?.type || "Unknown",
-        slope: data.terrain_data?.slope || "Unknown",
-        soilType: data.terrain_data?.soil || "Unknown",
-        // Enhanced risk breakdown
-        riskBreakdown: data.risk_breakdown || {},
-        recommendations: data.recommendations || [],
-        alerts: data.alerts || [],
-        weatherData: data.weather_data || {},
-        timestamp: data.timestamp || new Date().toISOString(),
-      };
-
-      // Generate mock route GeoJSON (in production, use Mapbox Directions API)
-      const routeGeoJSON = generateRouteGeoJSON(startCoords, destCoords);
-
-      setSafetyReport(report);
-      setRouteGeoJSON(routeGeoJSON);
-    } catch (error) {
-      console.error("Safety scan error:", error);
-      setSafetyReport({
-        riskLevel: "UNKNOWN",
-        riskScore: 0,
-        reason: "Failed to analyze route. Please try again.",
-        source: "Error",
-        distance: "Unknown",
-      });
-      setScanError("Route analysis failed. Check connectivity or retry.");
-    } finally {
-      setScanningRoute(false);
-    }
-  };
-
-  // Generate route GeoJSON (simplified - in production use Mapbox Directions API)
+  // Generate route GeoJSON (simplified - fallback only)
   const generateRouteGeoJSON = (start, end) => {
-    // Simple interpolation for demo
     const steps = 20;
     const coordinates = [];
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const lat = start[0] + (end[0] - start[0]) * t;
       const lng = start[1] + (end[1] - start[1]) * t;
-      // Add slight curve for visual interest
       const offset = Math.sin(t * Math.PI) * 0.05;
       coordinates.push([lng + offset, lat]);
     }
@@ -252,7 +253,7 @@ const MapView = () => {
       type: "Feature",
       geometry: {
         type: "LineString",
-        coordinates: coordinates,
+        coordinates,
       },
       properties: {},
     };
@@ -261,7 +262,7 @@ const MapView = () => {
   // Haversine distance in km
   const getDistanceKm = (start, end) => {
     const toRad = (deg) => (deg * Math.PI) / 180;
-    const R = 6371; // km
+    const R = 6371;
     const dLat = toRad(end[0] - start[0]);
     const dLng = toRad(end[1] - start[1]);
     const lat1 = toRad(start[0]);
@@ -273,9 +274,155 @@ const MapView = () => {
     return R * c;
   };
 
+  // SAFETY SCAN
+  const runSafetyScan = async () => {
+    setUiState("analyzing");
+    setScanningRoute(true);
+    setSafetyReport(null);
+    setScanError(null);
+    setHasRealRoute(false);
+
+    const fallbackDistanceKm = getDistanceKm(startCoords, destCoords);
+    let reportOut = null;
+    let routeOut = null;
+    let distanceFromDirections = null;
+    let gotDirectionsRoute = false;
+
+    const fallbackReport = (reason) => ({
+      riskLevel: "UNKNOWN",
+      riskScore: 0,
+      reason,
+      source: offlineMode ? "Offline" : "Error",
+      distance: `${fallbackDistanceKm.toFixed(1)} km`,
+      terrainType: "Unknown",
+      slope: "Unknown",
+      soilType: "Unknown",
+      riskBreakdown: {},
+      recommendations: [],
+      alerts: [],
+      weatherData: {},
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      if (offlineMode) {
+        clearTimeout(timeoutId);
+        reportOut = fallbackReport(
+          "Offline mode: using cached route visualization",
+        );
+        routeOut = generateRouteGeoJSON(startCoords, destCoords);
+      } else {
+        const response = await fetch(
+          `${API_BASE_URL}/analyze?start_lat=${startCoords[0]}&start_lng=${startCoords[1]}&end_lat=${destCoords[0]}&end_lng=${destCoords[1]}`,
+          { signal: controller.signal },
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`Analyze failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        const normalizedDistance = (() => {
+          const raw = data?.distance;
+          const numeric = parseFloat(raw);
+          if (!Number.isNaN(numeric) && numeric > 0)
+            return `${numeric.toFixed(1)} km`;
+          return `${fallbackDistanceKm.toFixed(1)} km`;
+        })();
+
+        reportOut = {
+          riskLevel: data?.route_risk || data?.risk_level || "UNKNOWN",
+          riskScore: data?.confidence_score ?? data?.risk_score ?? 0,
+          reason: data?.reason || data?.status || "No risk data available",
+          source: data?.source || "System",
+          distance: normalizedDistance,
+          terrainType: data?.terrain_data?.type || "Unknown",
+          slope: data?.terrain_data?.slope || "Unknown",
+          soilType: data?.terrain_data?.soil || "Unknown",
+          riskBreakdown: data?.risk_breakdown || {},
+          recommendations: data?.recommendations || [],
+          alerts: data?.alerts || [],
+          weatherData: data?.weather_data || {},
+          timestamp: data?.timestamp || new Date().toISOString(),
+        };
+
+        routeOut = generateRouteGeoJSON(startCoords, destCoords);
+        const { feature, distanceKm } = await fetchMapboxRoute(
+          startCoords,
+          destCoords,
+        );
+        if (feature) {
+          routeOut = feature;
+          distanceFromDirections = distanceKm;
+          gotDirectionsRoute = true;
+        }
+      }
+    } catch (error) {
+      console.error("Safety scan error:", error);
+      setScanError(error?.message || "Route analysis failed.");
+      reportOut = fallbackReport(
+        error?.message || "Failed to analyze route. Please try again.",
+      );
+      routeOut = generateRouteGeoJSON(startCoords, destCoords);
+    } finally {
+      const baseReport =
+        reportOut ||
+        fallbackReport("Analysis unavailable. Using fallback route.");
+      const finalReport = distanceFromDirections
+        ? { ...baseReport, distance: `${distanceFromDirections.toFixed(1)} km` }
+        : baseReport;
+      const finalRoute =
+        routeOut || generateRouteGeoJSON(startCoords, destCoords);
+      setSafetyReport(finalReport);
+      setRouteGeoJSON(finalRoute);
+      setHasRealRoute(gotDirectionsRoute);
+      setUiState("analyzed");
+      setScanningRoute(false);
+      try {
+        localStorage.setItem(
+          "routeai_last_route",
+          JSON.stringify({
+            route: finalRoute,
+            report: finalReport,
+            startCoords,
+            destCoords,
+            hasRealRoute: gotDirectionsRoute,
+          }),
+        );
+      } catch (e) {
+        console.warn("Failed to persist cached route", e);
+      }
+    }
+  };
+
   // Start navigation
   const startNavigation = () => {
+    if (!safetyReport || !routeGeoJSON) return;
+    if (!hasRealRoute) {
+      setScanError("Need real road route. Tap 'Analyze Route Safety' first.");
+      return;
+    }
     setIsNavigating(true);
+    setUiState("navigating");
+    setNavigationProgress(5);
+
+    if (navigationTimerRef.current) clearInterval(navigationTimerRef.current);
+    navigationTimerRef.current = setInterval(() => {
+      setNavigationProgress((prev) => {
+        const next = Math.min(100, prev + 7);
+        if (next >= 100 && navigationTimerRef.current) {
+          clearInterval(navigationTimerRef.current);
+          navigationTimerRef.current = null;
+        }
+        return next;
+      });
+    }, 1200);
   };
 
   // Reset view
@@ -283,6 +430,12 @@ const MapView = () => {
     setSafetyReport(null);
     setRouteGeoJSON(null);
     setIsNavigating(false);
+    setNavigationProgress(0);
+    if (navigationTimerRef.current) {
+      clearInterval(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+    setUiState("idle");
   };
 
   const getRiskStyles = (riskLevel = "UNKNOWN") => {
@@ -304,6 +457,9 @@ const MapView = () => {
     return { pill: "bg-slate-100 text-slate-700", dot: "bg-slate-400" };
   };
 
+  const canAnalyze =
+    !!destination && (useCurrentLocation || !!startLocation) && !scanningRoute;
+
   return (
     <div className="relative w-screen h-screen bg-slate-900 overflow-hidden">
       <div className="absolute inset-0">
@@ -321,107 +477,235 @@ const MapView = () => {
       {/* TOP SEARCH + STYLE TOGGLE */}
       <div className="absolute top-0 left-0 right-0 z-[1000] p-4 pointer-events-none">
         <div className="max-w-4xl mx-auto space-y-3">
-          <div className="flex items-center justify-between text-xs text-white/80 pointer-events-auto">
-            <div className="flex items-center gap-2">
-              <Shield size={16} className="text-blue-300" />
-              <span className="font-semibold">Live Safety Routing</span>
-              {currentLocation && (
-                <span className="flex items-center gap-1 text-green-200">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                  GPS
-                </span>
-              )}
-            </div>
-            <div className="bg-white/90 backdrop-blur rounded-full shadow-lg flex items-center overflow-hidden border border-slate-200">
-              <button
-                className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
-                  mapStyle === "streets"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-700"
+          <div className="pointer-events-auto text-[11px] text-white/80 flex items-center gap-2">
+            <span className="px-2 py-1 rounded-full bg-black/40 border border-white/10 font-bold">
+              {t("map.state")}: {uiState}
+            </span>
+            {scanningRoute && (
+              <span className="px-2 py-1 rounded-full bg-blue-600 text-white font-bold">
+                {t("map.analyzing")}
+              </span>
+            )}
+            {!scanningRoute && uiState !== "idle" && (
+              <span
+                className={`px-2 py-1 rounded-full font-bold ${
+                  hasRealRoute
+                    ? "bg-green-600 text-white"
+                    : "bg-amber-500 text-white"
                 }`}
-                onClick={() => setMapStyle("streets")}
               >
-                <Layers size={14} />
-                Streets
-              </button>
-              <button
-                className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
-                  mapStyle === "satellite"
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-700"
-                }`}
-                onClick={() => setMapStyle("satellite")}
-              >
-                <Satellite size={14} />
-                Satellite
-              </button>
-            </div>
+                {hasRealRoute
+                  ? t("map.realRouteReady")
+                  : t("map.fallbackRoute")}
+              </span>
+            )}
+            {offlineMode && (
+              <span className="px-2 py-1 rounded-full bg-amber-500 text-white font-bold">
+                {t("map.offline")}
+              </span>
+            )}
+            {scanError && (
+              <span className="px-2 py-1 rounded-full bg-red-600 text-white font-bold">
+                {scanError}
+              </span>
+            )}
           </div>
 
-          <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-200 p-4 pointer-events-auto space-y-4">
-            {/* Start location */}
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase text-slate-400">
-                  Start
-                </label>
-                <div className="mt-1 flex items-center gap-3">
-                  <Search size={18} className="text-slate-400" />
-                  <input
-                    type="text"
-                    value={startLocation}
-                    onChange={(e) => {
-                      setStartLocation(e.target.value);
-                      setUseCurrentLocation(false);
-                    }}
-                    onFocus={() => {
-                      if (startSuggestions.length > 0)
-                        setShowStartSuggestions(true);
-                    }}
-                    placeholder="Use GPS or type start"
-                    className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                    disabled={isNavigating}
-                  />
-                  <label className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-1.5 rounded-lg cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="w-3 h-3"
-                      checked={useCurrentLocation}
-                      onChange={(e) => {
-                        setUseCurrentLocation(e.target.checked);
-                        if (e.target.checked && currentLocation) {
-                          setStartCoords(currentLocation);
-                          setStartLocation("Current Location");
-                          setShowStartSuggestions(false);
-                        }
-                      }}
-                      disabled={isNavigating}
-                    />
-                    GPS
-                  </label>
-                  {startLocation && !searchingStart && !useCurrentLocation && (
-                    <button
-                      onClick={clearStartLocation}
-                      className="p-2 hover:bg-slate-100 rounded-xl"
-                      aria-label="Clear start"
-                    >
-                      <X size={16} className="text-slate-400" />
-                    </button>
-                  )}
-                  {searchingStart && (
-                    <Loader size={16} className="animate-spin text-blue-600" />
+          {!isNavigating && (
+            <>
+              <div className="flex items-center justify-between text-xs text-white/80 pointer-events-auto">
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-blue-300" />
+                  <span className="font-semibold">{t("map.liveRouting")}</span>
+                  {currentLocation && (
+                    <span className="flex items-center gap-1 text-green-200">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                      {t("map.gps")}
+                    </span>
                   )}
                 </div>
-                {showStartSuggestions && startSuggestions.length > 0 && (
-                  <div className="mt-3 -mx-4 rounded-2xl border border-green-200 bg-white shadow-xl max-h-64 overflow-y-auto">
-                    {startSuggestions.map((suggestion, index) => (
+                <div className="bg-white/90 backdrop-blur rounded-full shadow-lg flex items-center overflow-hidden border border-slate-200">
+                  <button
+                    className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
+                      mapStyle === "streets"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-700"
+                    }`}
+                    onClick={() => setMapStyle("streets")}
+                  >
+                    <Layers size={14} />
+                    {t("map.streets")}
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
+                      mapStyle === "satellite"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-700"
+                    }`}
+                    onClick={() => setMapStyle("satellite")}
+                  >
+                    <Satellite size={14} />
+                    {t("map.satellite")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-200 p-4 pointer-events-auto space-y-4">
+                {/* Start location */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-bold uppercase text-slate-400">
+                      {t("map.start")}
+                    </label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <Search size={18} className="text-slate-400" />
+                      <input
+                        type="text"
+                        value={startLocation}
+                        onChange={(e) => {
+                          setStartLocation(e.target.value);
+                          setUseCurrentLocation(false);
+                        }}
+                        onFocus={() => {
+                          if (startSuggestions.length > 0)
+                            setShowStartSuggestions(true);
+                        }}
+                        placeholder={t("map.useGpsOrType")}
+                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                        disabled={isNavigating}
+                      />
+                      <label className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-1.5 rounded-lg cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-3 h-3"
+                          checked={useCurrentLocation}
+                          onChange={(e) => {
+                            setUseCurrentLocation(e.target.checked);
+                            if (e.target.checked && currentLocation) {
+                              setStartCoords(currentLocation);
+                              setStartLocation("Current Location");
+                              setShowStartSuggestions(false);
+                            }
+                          }}
+                          disabled={isNavigating}
+                        />
+                        {t("map.gps")}
+                      </label>
+                      {startLocation &&
+                        !searchingStart &&
+                        !useCurrentLocation && (
+                          <button
+                            onClick={clearStartLocation}
+                            className="p-2 hover:bg-slate-100 rounded-xl"
+                            aria-label="Clear start"
+                          >
+                            <X size={16} className="text-slate-400" />
+                          </button>
+                        )}
+                      {searchingStart && (
+                        <Loader
+                          size={16}
+                          className="animate-spin text-blue-600"
+                        />
+                      )}
+                    </div>
+                    {showStartSuggestions && startSuggestions.length > 0 && (
+                      <div className="mt-3 -mx-4 rounded-2xl border border-green-200 bg-white shadow-xl max-h-64 overflow-y-auto">
+                        {startSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => selectLocation(suggestion, true)}
+                            className="w-full text-left px-4 py-3 hover:bg-green-50 border-b border-slate-100 last:border-b-0"
+                          >
+                            <div className="flex items-start gap-2">
+                              <Shield
+                                size={16}
+                                className="text-green-600 mt-0.5"
+                              />
+                              <div>
+                                <p className="text-sm font-bold text-slate-800">
+                                  {suggestion.placeName}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {suggestion.context}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
+                    <span className="font-semibold">{t("map.from")}</span>
+                    <span className="font-bold text-slate-800">
+                      {useCurrentLocation
+                        ? t("map.currentLocation")
+                        : startLocation || t("map.setStart")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Destination */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-bold uppercase text-slate-400">
+                      {t("map.destination")}
+                    </label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <Search size={18} className="text-slate-400" />
+                      <input
+                        type="text"
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        onFocus={() => {
+                          if (destSuggestions.length > 0)
+                            setShowDestSuggestions(true);
+                        }}
+                        placeholder={t("map.enterDestination")}
+                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                        disabled={isNavigating}
+                      />
+                      {destination && !searchingDest && (
+                        <button
+                          onClick={clearDestination}
+                          className="p-2 hover:bg-slate-100 rounded-xl"
+                          aria-label="Clear destination"
+                        >
+                          <X size={16} className="text-slate-400" />
+                        </button>
+                      )}
+                      {searchingDest && (
+                        <Loader
+                          size={16}
+                          className="animate-spin text-blue-600"
+                        />
+                      )}
+                    </div>
+                    {scanError && (
+                      <p className="text-[11px] text-red-600 mt-1">
+                        {scanError}
+                      </p>
+                    )}
+                  </div>
+                  <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
+                    <span className="font-semibold">{t("map.to")}</span>
+                    <span className="font-bold text-slate-800">
+                      {destination || t("map.destination")}
+                    </span>
+                  </div>
+                </div>
+
+                {showDestSuggestions && destSuggestions.length > 0 && (
+                  <div className="mt-3 -mx-4 rounded-2xl border border-blue-200 bg-white shadow-xl max-h-64 overflow-y-auto">
+                    {destSuggestions.map((suggestion, index) => (
                       <button
                         key={index}
-                        onClick={() => selectLocation(suggestion, true)}
-                        className="w-full text-left px-4 py-3 hover:bg-green-50 border-b border-slate-100 last:border-b-0"
+                        onClick={() => selectLocation(suggestion, false)}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
                       >
                         <div className="flex items-start gap-2">
-                          <Shield size={16} className="text-green-600 mt-0.5" />
+                          <Target size={16} className="text-blue-600 mt-0.5" />
                           <div>
                             <p className="text-sm font-bold text-slate-800">
                               {suggestion.placeName}
@@ -435,106 +719,33 @@ const MapView = () => {
                     ))}
                   </div>
                 )}
-              </div>
-              <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
-                <span className="font-semibold">From</span>
-                <span className="font-bold text-slate-800">
-                  {useCurrentLocation
-                    ? "Current location"
-                    : startLocation || "Set start"}
-                </span>
-              </div>
-            </div>
 
-            {/* Destination */}
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase text-slate-400">
-                  Destination
-                </label>
-                <div className="mt-1 flex items-center gap-3">
-                  <Search size={18} className="text-slate-400" />
-                  <input
-                    type="text"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    onFocus={() => {
-                      if (destSuggestions.length > 0)
-                        setShowDestSuggestions(true);
-                    }}
-                    placeholder="Enter destination"
-                    className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                    disabled={isNavigating}
-                  />
-                  {destination && !searchingDest && (
+                <div className="mt-3 flex items-center gap-3">
+                  {canAnalyze ? (
                     <button
-                      onClick={clearDestination}
-                      className="p-2 hover:bg-slate-100 rounded-xl"
-                      aria-label="Clear destination"
+                      onClick={runSafetyScan}
+                      disabled={!canAnalyze}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <X size={16} className="text-slate-400" />
+                      {scanningRoute
+                        ? `${t("map.analyzing")}`
+                        : t("map.analyzeBtn")}
                     </button>
-                  )}
-                  {searchingDest && (
-                    <Loader size={16} className="animate-spin text-blue-600" />
-                  )}
-                </div>
-                {scanError && (
-                  <p className="text-[11px] text-red-600 mt-1">{scanError}</p>
-                )}
-              </div>
-              <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
-                <span className="font-semibold">To</span>
-                <span className="font-bold text-slate-800">
-                  {destination || "Select destination"}
-                </span>
-              </div>
-            </div>
-
-            {showDestSuggestions && destSuggestions.length > 0 && (
-              <div className="mt-3 -mx-4 rounded-2xl border border-blue-200 bg-white shadow-xl max-h-64 overflow-y-auto">
-                {destSuggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => selectLocation(suggestion, false)}
-                    className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
-                  >
-                    <div className="flex items-start gap-2">
-                      <Target size={16} className="text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">
-                          {suggestion.placeName}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {suggestion.context}
-                        </p>
-                      </div>
+                  ) : (
+                    <div className="flex-1 text-center text-xs text-slate-500 font-semibold bg-slate-100 py-3 rounded-xl">
+                      {t("map.selectPrompt")}
                     </div>
+                  )}
+                  <button
+                    onClick={resetView}
+                    className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
+                  >
+                    {t("map.reset")}
                   </button>
-                ))}
+                </div>
               </div>
-            )}
-
-            <div className="mt-3 flex items-center gap-3">
-              <button
-                onClick={runSafetyScan}
-                disabled={
-                  (!useCurrentLocation && !startLocation) ||
-                  !destination ||
-                  scanningRoute
-                }
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Analyze Route Safety
-              </button>
-              <button
-                onClick={resetView}
-                className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -551,11 +762,9 @@ const MapView = () => {
                 />
               </div>
               <div className="text-center">
-                <p className="font-bold text-lg mb-2">
-                  Safety Scan in Progress
-                </p>
+                <p className="font-bold text-lg mb-2">{t("map.safetyScan")}</p>
                 <p className="text-sm text-slate-400">
-                  Analyzing terrain, hazards, and risk factors...
+                  {t("map.analyzingTerrain")}
                 </p>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -566,92 +775,93 @@ const MapView = () => {
         </div>
       )}
 
-      {/* BOTTOM SHEET SUMMARY */}
+      {/* BOTTOM JOURNEY PANEL */}
       {safetyReport && (
         <div className="absolute inset-x-0 bottom-0 z-[1000] px-4 pb-6 pointer-events-none">
-          <div className="max-w-4xl mx-auto bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-5 pointer-events-auto">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-                  <Compass size={16} className="text-blue-600" />
-                  {isNavigating ? "Navigation locked" : "Route ready"}
-                </div>
-                <div className="text-sm font-bold text-slate-900">
-                  {startLocation || "Current location"} →{" "}
-                  {destination || "Destination"}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                  <span
-                    className={`px-2 py-1 rounded-full font-bold ${getRiskStyles(safetyReport.riskLevel).pill}`}
-                  >
-                    Risk: {safetyReport.riskLevel}
-                  </span>
-                  <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-800 font-mono">
-                    Confidence: {safetyReport.riskScore || 0}%
-                  </span>
-                  {safetyReport.distance && (
-                    <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-800 font-mono">
-                      {safetyReport.distance}
-                    </span>
-                  )}
-                </div>
+          <div className="max-w-4xl mx-auto bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-5 pointer-events-auto space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                <Compass size={16} className="text-blue-600" />
+                {uiState === "navigating"
+                  ? t("map.navigationActiveShort")
+                  : t("map.routeAnalyzed")}
               </div>
-              <div className="text-right space-y-1 text-[11px] text-slate-500">
-                <div className="flex items-center gap-2 justify-end">
-                  <span
-                    className={`w-2 h-2 rounded-full ${getRiskStyles(safetyReport.riskLevel).dot}`}
-                  />
-                  <span className="font-semibold">
-                    {safetyReport.source || "System"}
-                  </span>
-                </div>
-                <div className="font-mono text-slate-600">
-                  {new Date(
-                    safetyReport.timestamp || Date.now(),
-                  ).toLocaleTimeString()}
-                </div>
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full ${getRiskStyles(safetyReport.riskLevel).dot}`}
+                ></span>
+                {safetyReport.source || "System"}
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-600">
+            <div className="grid grid-cols-4 gap-3 text-xs text-slate-700">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">Distance</p>
+                <p className="font-semibold text-slate-500 mb-1">
+                  {t("map.distance")}
+                </p>
                 <p className="text-base font-black text-slate-900">
-                  {safetyReport.distance}
+                  {safetyReport.distance || "-"}
                 </p>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">Terrain</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {safetyReport.terrainType}
+                <p className="font-semibold text-slate-500 mb-1">
+                  {t("map.safetyScore")}
+                </p>
+                <p className="text-base font-black text-slate-900">
+                  {safetyReport.riskScore ?? 0}%
                 </p>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">Slope</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {safetyReport.slope}
+                <p className="font-semibold text-slate-500 mb-1">
+                  {t("map.riskLevel")}
+                </p>
+                <p className="text-base font-black text-slate-900">
+                  {safetyReport.riskLevel || "UNKNOWN"}
+                </p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p className="font-semibold text-slate-500 mb-1">
+                  {t("map.aiExplanation")}
+                </p>
+                <p className="text-sm font-semibold text-slate-800 line-clamp-2">
+                  {safetyReport.reason || "Route rationale unavailable"}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <div className="font-mono">
+                {new Date(
+                  safetyReport.timestamp || Date.now(),
+                ).toLocaleTimeString()}
+              </div>
+              {uiState === "navigating" && (
+                <div className="flex items-center gap-2 text-blue-600 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  {t("map.navigationActiveShort")} {navigationProgress}%
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={isNavigating ? resetView : startNavigation}
+                disabled={!safetyReport || !routeGeoJSON || scanningRoute}
                 className={`flex-1 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
                   isNavigating
                     ? "bg-red-600 text-white"
                     : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
               >
                 <Navigation size={18} />
-                {isNavigating ? "End Navigation" : "Start Navigation"}
+                {isNavigating ? t("map.endJourney") : t("map.startJourney")}
               </button>
               {!isNavigating && (
                 <button
                   onClick={resetView}
                   className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
                 >
-                  Close
+                  {t("map.close")}
                 </button>
               )}
             </div>
@@ -676,9 +886,9 @@ const MapView = () => {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
               <div>
-                <p className="text-sm font-bold">Navigation Active</p>
+                <p className="text-sm font-bold">{t("map.navigationActive")}</p>
                 <p className="text-xs opacity-90">
-                  {safetyReport?.riskLevel} • {safetyReport?.distance}
+                  {safetyReport?.riskLevel} {safetyReport?.distance}
                 </p>
               </div>
             </div>
@@ -686,20 +896,14 @@ const MapView = () => {
               onClick={resetView}
               className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all"
             >
-              Exit
+              {t("map.exit")}
             </button>
           </div>
         </div>
       )}
-
       {/* SOS BUTTON */}
-      <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
-        <button className="bg-red-600 hover:bg-red-700 text-white font-black px-6 py-3 rounded-2xl shadow-2xl active:scale-95 transition-all">
-          SOS
-        </button>
-      </div>
     </div>
   );
-};
+}
 
 export default MapView;
