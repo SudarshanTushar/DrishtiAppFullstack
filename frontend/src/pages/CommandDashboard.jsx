@@ -487,24 +487,99 @@ const CommandDashboard = () => {
       });
 
       if (response.ok) {
-        const htmlContent = await response.text();
+        const data = await response.json();
+        const jsonText = JSON.stringify(data, null, 2);
 
-        // Display in-app modal overlay (no browser redirect)
         const modalOverlay = document.createElement("div");
-        modalOverlay.innerHTML = `
-          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 99999; display: flex; flex-direction: column;">
-            <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-              <div style="color: white; font-size: 1.1rem; font-weight: bold;">📊 SITREP - ${new Date().toLocaleDateString()}</div>
-              <div style="display: flex; gap: 1rem; align-items: center;">
-                <button onclick="window.print()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer;">🖨️ Print</button>
-                <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer;">✕ Close</button>
-              </div>
-            </div>
-            <div style="flex: 1; overflow-y: auto; padding: 0; background: white;">
-              ${htmlContent}
-            </div>
-          </div>
-        `;
+        modalOverlay.style.position = "fixed";
+        modalOverlay.style.top = "0";
+        modalOverlay.style.left = "0";
+        modalOverlay.style.right = "0";
+        modalOverlay.style.bottom = "0";
+        modalOverlay.style.background = "rgba(0,0,0,0.9)";
+        modalOverlay.style.zIndex = "99999";
+        modalOverlay.style.display = "flex";
+        modalOverlay.style.flexDirection = "column";
+
+        const header = document.createElement("div");
+        header.style.background =
+          "linear-gradient(135deg, #0f172a 0%, #1f2937 100%)";
+        header.style.padding = "1rem 1.5rem";
+        header.style.display = "flex";
+        header.style.justifyContent = "space-between";
+        header.style.alignItems = "center";
+        header.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
+
+        const title = document.createElement("div");
+        title.style.color = "white";
+        title.style.fontSize = "1.1rem";
+        title.style.fontWeight = "bold";
+        title.textContent = `📊 SITREP - ${new Date().toLocaleString()}`;
+
+        const headerActions = document.createElement("div");
+        headerActions.style.display = "flex";
+        headerActions.style.gap = "0.75rem";
+        headerActions.style.alignItems = "center";
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.textContent = "⬇️ Download";
+        downloadBtn.style.background = "#2563eb";
+        downloadBtn.style.color = "white";
+        downloadBtn.style.border = "none";
+        downloadBtn.style.padding = "0.5rem 1rem";
+        downloadBtn.style.borderRadius = "0.5rem";
+        downloadBtn.style.fontWeight = "bold";
+        downloadBtn.style.cursor = "pointer";
+        downloadBtn.onclick = () => {
+          const blob = new Blob([jsonText], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `sitrep-${Date.now()}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+        };
+
+        const closeBtn = document.createElement("button");
+        closeBtn.textContent = "✕ Close";
+        closeBtn.style.background = "#ef4444";
+        closeBtn.style.color = "white";
+        closeBtn.style.border = "none";
+        closeBtn.style.padding = "0.5rem 1rem";
+        closeBtn.style.borderRadius = "0.5rem";
+        closeBtn.style.fontWeight = "bold";
+        closeBtn.style.cursor = "pointer";
+        closeBtn.onclick = () => modalOverlay.remove();
+
+        headerActions.appendChild(downloadBtn);
+        headerActions.appendChild(closeBtn);
+        header.appendChild(title);
+        header.appendChild(headerActions);
+
+        const content = document.createElement("div");
+        content.style.flex = "1";
+        content.style.overflowY = "auto";
+        content.style.padding = "1rem";
+        content.style.background = "#0b1120";
+
+        const panel = document.createElement("div");
+        panel.style.background = "#f8fafc";
+        panel.style.borderRadius = "0.75rem";
+        panel.style.padding = "1rem";
+        panel.style.fontFamily = "JetBrains Mono, Consolas, monospace";
+        panel.style.boxShadow = "0 10px 30px rgba(0,0,0,0.2)";
+
+        const pre = document.createElement("pre");
+        pre.style.whiteSpace = "pre-wrap";
+        pre.style.wordBreak = "break-word";
+        pre.style.fontSize = "0.85rem";
+        pre.textContent = jsonText;
+
+        panel.appendChild(pre);
+        content.appendChild(panel);
+
+        modalOverlay.appendChild(header);
+        modalOverlay.appendChild(content);
         document.body.appendChild(modalOverlay);
 
         triggerHapticFeedback("success");
