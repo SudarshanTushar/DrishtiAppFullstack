@@ -86,7 +86,7 @@ const App = () => {
               <h2 className="text-xl font-black">{t("app.name")}</h2>
             </div>
           </div>
-          <p className="text-sm text-slate-300">Choose your app language</p>
+          <p className="text-sm text-slate-300">Select your system language</p>
           <div className="grid grid-cols-2 gap-2">
             {languages.map((l) => (
               <button

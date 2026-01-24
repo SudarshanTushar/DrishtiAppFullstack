@@ -212,7 +212,7 @@ export default function HomeScreen() {
         {/* SYSTEM INFO */}
         <div className="system-info">
           <div className="info-row">
-            <span className="info-label">App Version:</span>
+            <span className="info-label">System Version:</span>
             <span className="info-value">1.0.0</span>
           </div>
           <div className="info-row">

@@ -641,12 +641,18 @@ const CommandDashboard = () => {
         </div>
       </div>
 
-      {/* DRONE SURVEILLANCE */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-bold text-slate-700 flex items-center gap-2">
-            <Plane className="text-blue-500" /> Drone Analysis
-          </h3>
+      {/* DRONE SURVEILLANCE (PHASE-2) */}
+      <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200 shadow-none opacity-80">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex flex-col gap-1">
+            <h3 className="font-bold text-slate-700 flex items-center gap-2">
+              <Plane className="text-blue-500" /> Drone Analysis
+            </h3>
+            <span className="text-[11px] font-semibold text-slate-500">
+              Phase-2 Integration (Post-Pilot) — informational only; does not
+              interrupt authority decisions.
+            </span>
+          </div>
           <span
             className={`text-[10px] font-bold px-2 py-1 rounded-full ${
               droneMode === "standby"
@@ -660,18 +666,25 @@ const CommandDashboard = () => {
                       : "bg-red-100 text-red-700"
             }`}
           >
-            {droneMode.toUpperCase()}
+            {droneMode === "scanning"
+              ? "RISK ASSESSMENT"
+              : droneMode.toUpperCase()}
           </span>
         </div>
 
         {droneMode === "standby" && (
           <div className="bg-slate-100 rounded-xl h-32 flex items-center justify-center border-2 border-dashed border-slate-300">
-            <button
-              onClick={startDroneScan}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-sm"
-            >
-              Start Scan
-            </button>
+            <div className="text-center space-y-2">
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                Phase-2 Integration (Post-Pilot)
+              </div>
+              <button
+                onClick={startDroneScan}
+                className="bg-blue-600/70 text-white px-6 py-3 rounded-lg font-bold text-sm"
+              >
+                Initiate Risk Assessment
+              </button>
+            </div>
           </div>
         )}
 
@@ -680,7 +693,7 @@ const CommandDashboard = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-2"></div>
             <p className="text-xs text-slate-600 font-bold">
               {droneMode === "scanning"
-                ? "Scanning Area..."
+                ? "Risk Assessment in Progress..."
                 : "Analyzing Footage..."}
             </p>
           </div>

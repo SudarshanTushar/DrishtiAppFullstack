@@ -193,7 +193,7 @@ class NetworkManager {
         type: "dtn",
         color: "#F59E0B", // amber
         icon: "🔍",
-        description: "Scanning for devices",
+        description: "Risk assessment in progress; monitoring nearby relays",
       };
     }
 

@@ -17,7 +17,7 @@ class ErrorBoundary extends React.Component {
   // FIX: EMERGENCY RESET FUNCTION
   handleReset = () => {
     localStorage.clear(); // Clear bad data
-    window.location.reload(); // Restart app
+    window.location.reload(); // Restart system UI
   };
 
   render() {
@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
             fontFamily: "sans-serif",
           }}
         >
-          <h1 style={{ color: "#ef4444" }}>⚠️ App Crash</h1>
+          <h1 style={{ color: "#ef4444" }}>⚠️ System Fault</h1>
           <p style={{ color: "#64748b" }}>Critical system failure detected.</p>
 
           <div

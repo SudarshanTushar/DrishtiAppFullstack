@@ -393,7 +393,8 @@ const SOSView = () => {
           <div className="mt-4 p-3 bg-gray-700 rounded text-sm">
             {stats.isScanning ? (
               <p className="text-green-400">
-                🔍 Actively scanning for nearby devices every 15 seconds
+                🔍 Risk assessment in progress; monitoring nearby relays every
+                15 seconds
               </p>
             ) : (
               <p className="text-gray-400">

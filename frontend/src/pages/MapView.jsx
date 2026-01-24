@@ -86,6 +86,76 @@ function MapView() {
   const [navigationProgress, setNavigationProgress] = useState(0);
   const navigationTimerRef = useRef(null);
   const [mapStyle, setMapStyle] = useState("streets");
+  const mapContainerRef = useRef(null);
+  const bodyOverflowRef = useRef(null);
+
+  // Scroll lock when interacting inside the map container (desktop + mobile)
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return undefined;
+
+    const lockScroll = () => {
+      if (bodyOverflowRef.current === null) {
+        bodyOverflowRef.current = document.body.style.overflow || "";
+        document.body.style.overflow = "hidden";
+      }
+    };
+
+    const unlockScroll = () => {
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+    };
+
+    const handlePointerEnter = () => lockScroll();
+    const handlePointerLeave = () => unlockScroll();
+    const handleWheel = (e) => {
+      if (bodyOverflowRef.current !== null) {
+        e.preventDefault();
+      }
+    };
+    const handleTouchMove = (e) => {
+      if (bodyOverflowRef.current !== null) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener("pointerenter", handlePointerEnter);
+    container.addEventListener("pointerleave", handlePointerLeave);
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handlePointerEnter, {
+      passive: true,
+    });
+    container.addEventListener("touchend", handlePointerLeave, {
+      passive: true,
+    });
+    container.addEventListener("touchcancel", handlePointerLeave, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+
+    return () => {
+      container.removeEventListener("pointerenter", handlePointerEnter);
+      container.removeEventListener("pointerleave", handlePointerLeave);
+      container.removeEventListener("wheel", handleWheel, { passive: false });
+      container.removeEventListener("touchstart", handlePointerEnter, {
+        passive: true,
+      });
+      container.removeEventListener("touchend", handlePointerLeave, {
+        passive: true,
+      });
+      container.removeEventListener("touchcancel", handlePointerLeave, {
+        passive: true,
+      });
+      container.removeEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
+      unlockScroll();
+    };
+  }, []);
 
   // Cleanup navigation timer on unmount
   useEffect(() => {
@@ -461,447 +531,457 @@ function MapView() {
     !!destination && (useCurrentLocation || !!startLocation) && !scanningRoute;
 
   return (
-    <div className="relative w-screen h-screen bg-slate-900 overflow-hidden">
-      <div className="absolute inset-0">
-        <MapboxMap
-          startCoords={startCoords}
-          destCoords={destCoords}
-          currentLocation={currentLocation}
-          routeData={routeGeoJSON}
-          riskLevel={safetyReport?.riskLevel || "UNKNOWN"}
-          mapStyle={mapStyle}
-          isNavigating={isNavigating}
-        />
-      </div>
+    <div className="w-full space-y-6 pb-12">
+      <div className="relative w-full h-[70vh] min-h-[500px] bg-slate-900 overflow-hidden rounded-3xl shadow-2xl border border-slate-800">
+        <div className="absolute inset-0" ref={mapContainerRef}>
+          <MapboxMap
+            startCoords={startCoords}
+            destCoords={destCoords}
+            currentLocation={currentLocation}
+            routeData={routeGeoJSON}
+            riskLevel={safetyReport?.riskLevel || "UNKNOWN"}
+            mapStyle={mapStyle}
+            isNavigating={isNavigating}
+          />
+        </div>
 
-      {/* TOP SEARCH + STYLE TOGGLE */}
-      <div className="absolute top-0 left-0 right-0 z-[1000] p-4 pointer-events-none">
-        <div className="max-w-4xl mx-auto space-y-3">
-          <div className="pointer-events-auto text-[11px] text-white/80 flex items-center gap-2">
-            <span className="px-2 py-1 rounded-full bg-black/40 border border-white/10 font-bold">
-              {t("map.state")}: {uiState}
-            </span>
-            {scanningRoute && (
-              <span className="px-2 py-1 rounded-full bg-blue-600 text-white font-bold">
-                {t("map.analyzing")}
+        {/* TOP SEARCH + STYLE TOGGLE */}
+        <div className="absolute top-0 left-0 right-0 z-[1000] p-4 pointer-events-none">
+          <div className="max-w-4xl mx-auto space-y-3">
+            <div className="pointer-events-auto text-[11px] text-white/80 flex items-center gap-2">
+              <span className="px-2 py-1 rounded-full bg-black/40 border border-white/10 font-bold">
+                {t("map.state")}: {uiState}
               </span>
-            )}
-            {!scanningRoute && uiState !== "idle" && (
-              <span
-                className={`px-2 py-1 rounded-full font-bold ${
-                  hasRealRoute
-                    ? "bg-green-600 text-white"
-                    : "bg-amber-500 text-white"
-                }`}
-              >
-                {hasRealRoute
-                  ? t("map.realRouteReady")
-                  : t("map.fallbackRoute")}
-              </span>
-            )}
-            {offlineMode && (
-              <span className="px-2 py-1 rounded-full bg-amber-500 text-white font-bold">
-                {t("map.offline")}
-              </span>
-            )}
-            {scanError && (
-              <span className="px-2 py-1 rounded-full bg-red-600 text-white font-bold">
-                {scanError}
-              </span>
-            )}
-          </div>
+              {scanningRoute && (
+                <span className="px-2 py-1 rounded-full bg-blue-600 text-white font-bold">
+                  {t("map.analyzing")}
+                </span>
+              )}
+              {!scanningRoute && uiState !== "idle" && (
+                <span
+                  className={`px-2 py-1 rounded-full font-bold ${
+                    hasRealRoute
+                      ? "bg-green-600 text-white"
+                      : "bg-amber-500 text-white"
+                  }`}
+                >
+                  {hasRealRoute
+                    ? t("map.realRouteReady")
+                    : t("map.fallbackRoute")}
+                </span>
+              )}
+              {offlineMode && (
+                <span className="px-2 py-1 rounded-full bg-amber-500 text-white font-bold">
+                  {t("map.offline")}
+                </span>
+              )}
+              {scanError && (
+                <span className="px-2 py-1 rounded-full bg-red-600 text-white font-bold">
+                  {scanError}
+                </span>
+              )}
+            </div>
 
-          {!isNavigating && (
-            <>
-              <div className="flex items-center justify-between text-xs text-white/80 pointer-events-auto">
-                <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-blue-300" />
-                  <span className="font-semibold">{t("map.liveRouting")}</span>
-                  {currentLocation && (
-                    <span className="flex items-center gap-1 text-green-200">
-                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                      {t("map.gps")}
+            {!isNavigating && (
+              <>
+                <div className="flex items-center justify-between text-xs text-white/80 pointer-events-auto">
+                  <div className="flex items-center gap-2">
+                    <Shield size={16} className="text-blue-300" />
+                    <span className="font-semibold">
+                      {t("map.liveRouting")}
                     </span>
-                  )}
+                    {currentLocation && (
+                      <span className="flex items-center gap-1 text-green-200">
+                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                        {t("map.gps")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="bg-white/90 backdrop-blur rounded-full shadow-lg flex items-center overflow-hidden border border-slate-200">
+                    <button
+                      className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
+                        mapStyle === "streets"
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700"
+                      }`}
+                      onClick={() => setMapStyle("streets")}
+                    >
+                      <Layers size={14} />
+                      {t("map.streets")}
+                    </button>
+                    <button
+                      className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
+                        mapStyle === "satellite"
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700"
+                      }`}
+                      onClick={() => setMapStyle("satellite")}
+                    >
+                      <Satellite size={14} />
+                      {t("map.satellite")}
+                    </button>
+                  </div>
                 </div>
-                <div className="bg-white/90 backdrop-blur rounded-full shadow-lg flex items-center overflow-hidden border border-slate-200">
-                  <button
-                    className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
-                      mapStyle === "streets"
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-700"
-                    }`}
-                    onClick={() => setMapStyle("streets")}
-                  >
-                    <Layers size={14} />
-                    {t("map.streets")}
-                  </button>
-                  <button
-                    className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-all ${
-                      mapStyle === "satellite"
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-700"
-                    }`}
-                    onClick={() => setMapStyle("satellite")}
-                  >
-                    <Satellite size={14} />
-                    {t("map.satellite")}
-                  </button>
-                </div>
-              </div>
 
-              <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-200 p-4 pointer-events-auto space-y-4">
-                {/* Start location */}
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <label className="text-[11px] font-bold uppercase text-slate-400">
-                      {t("map.start")}
-                    </label>
-                    <div className="mt-1 flex items-center gap-3">
-                      <Search size={18} className="text-slate-400" />
-                      <input
-                        type="text"
-                        value={startLocation}
-                        onChange={(e) => {
-                          setStartLocation(e.target.value);
-                          setUseCurrentLocation(false);
-                        }}
-                        onFocus={() => {
-                          if (startSuggestions.length > 0)
-                            setShowStartSuggestions(true);
-                        }}
-                        placeholder={t("map.useGpsOrType")}
-                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                        disabled={isNavigating}
-                      />
-                      <label className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-1.5 rounded-lg cursor-pointer">
+                <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-200 p-4 pointer-events-auto space-y-4">
+                  {/* Start location */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold uppercase text-slate-400">
+                        {t("map.start")}
+                      </label>
+                      <div className="mt-1 flex items-center gap-3">
+                        <Search size={18} className="text-slate-400" />
                         <input
-                          type="checkbox"
-                          className="w-3 h-3"
-                          checked={useCurrentLocation}
+                          type="text"
+                          value={startLocation}
                           onChange={(e) => {
-                            setUseCurrentLocation(e.target.checked);
-                            if (e.target.checked && currentLocation) {
-                              setStartCoords(currentLocation);
-                              setStartLocation("Current Location");
-                              setShowStartSuggestions(false);
-                            }
+                            setStartLocation(e.target.value);
+                            setUseCurrentLocation(false);
                           }}
+                          onFocus={() => {
+                            if (startSuggestions.length > 0)
+                              setShowStartSuggestions(true);
+                          }}
+                          placeholder={t("map.useGpsOrType")}
+                          className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
                           disabled={isNavigating}
                         />
-                        {t("map.gps")}
+                        <label className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-1.5 rounded-lg cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="w-3 h-3"
+                            checked={useCurrentLocation}
+                            onChange={(e) => {
+                              setUseCurrentLocation(e.target.checked);
+                              if (e.target.checked && currentLocation) {
+                                setStartCoords(currentLocation);
+                                setStartLocation("Current Location");
+                                setShowStartSuggestions(false);
+                              }
+                            }}
+                            disabled={isNavigating}
+                          />
+                          {t("map.gps")}
+                        </label>
+                        {startLocation &&
+                          !searchingStart &&
+                          !useCurrentLocation && (
+                            <button
+                              onClick={clearStartLocation}
+                              className="p-2 hover:bg-slate-100 rounded-xl"
+                              aria-label="Clear start"
+                            >
+                              <X size={16} className="text-slate-400" />
+                            </button>
+                          )}
+                        {searchingStart && (
+                          <Loader
+                            size={16}
+                            className="animate-spin text-blue-600"
+                          />
+                        )}
+                      </div>
+                      {showStartSuggestions && startSuggestions.length > 0 && (
+                        <div className="mt-3 -mx-4 rounded-2xl border border-green-200 bg-white shadow-xl max-h-64 overflow-y-auto">
+                          {startSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              onClick={() => selectLocation(suggestion, true)}
+                              className="w-full text-left px-4 py-3 hover:bg-green-50 border-b border-slate-100 last:border-b-0"
+                            >
+                              <div className="flex items-start gap-2">
+                                <Shield
+                                  size={16}
+                                  className="text-green-600 mt-0.5"
+                                />
+                                <div>
+                                  <p className="text-sm font-bold text-slate-800">
+                                    {suggestion.placeName}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    {suggestion.context}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
+                      <span className="font-semibold">{t("map.from")}</span>
+                      <span className="font-bold text-slate-800">
+                        {useCurrentLocation
+                          ? t("map.currentLocation")
+                          : startLocation || t("map.setStart")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Destination */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold uppercase text-slate-400">
+                        {t("map.destination")}
                       </label>
-                      {startLocation &&
-                        !searchingStart &&
-                        !useCurrentLocation && (
+                      <div className="mt-1 flex items-center gap-3">
+                        <Search size={18} className="text-slate-400" />
+                        <input
+                          type="text"
+                          value={destination}
+                          onChange={(e) => setDestination(e.target.value)}
+                          onFocus={() => {
+                            if (destSuggestions.length > 0)
+                              setShowDestSuggestions(true);
+                          }}
+                          placeholder={t("map.enterDestination")}
+                          className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                          disabled={isNavigating}
+                        />
+                        {destination && !searchingDest && (
                           <button
-                            onClick={clearStartLocation}
+                            onClick={clearDestination}
                             className="p-2 hover:bg-slate-100 rounded-xl"
-                            aria-label="Clear start"
+                            aria-label="Clear destination"
                           >
                             <X size={16} className="text-slate-400" />
                           </button>
                         )}
-                      {searchingStart && (
-                        <Loader
-                          size={16}
-                          className="animate-spin text-blue-600"
-                        />
-                      )}
-                    </div>
-                    {showStartSuggestions && startSuggestions.length > 0 && (
-                      <div className="mt-3 -mx-4 rounded-2xl border border-green-200 bg-white shadow-xl max-h-64 overflow-y-auto">
-                        {startSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            onClick={() => selectLocation(suggestion, true)}
-                            className="w-full text-left px-4 py-3 hover:bg-green-50 border-b border-slate-100 last:border-b-0"
-                          >
-                            <div className="flex items-start gap-2">
-                              <Shield
-                                size={16}
-                                className="text-green-600 mt-0.5"
-                              />
-                              <div>
-                                <p className="text-sm font-bold text-slate-800">
-                                  {suggestion.placeName}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {suggestion.context}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
+                        {searchingDest && (
+                          <Loader
+                            size={16}
+                            className="animate-spin text-blue-600"
+                          />
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
-                    <span className="font-semibold">{t("map.from")}</span>
-                    <span className="font-bold text-slate-800">
-                      {useCurrentLocation
-                        ? t("map.currentLocation")
-                        : startLocation || t("map.setStart")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Destination */}
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <label className="text-[11px] font-bold uppercase text-slate-400">
-                      {t("map.destination")}
-                    </label>
-                    <div className="mt-1 flex items-center gap-3">
-                      <Search size={18} className="text-slate-400" />
-                      <input
-                        type="text"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        onFocus={() => {
-                          if (destSuggestions.length > 0)
-                            setShowDestSuggestions(true);
-                        }}
-                        placeholder={t("map.enterDestination")}
-                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                        disabled={isNavigating}
-                      />
-                      {destination && !searchingDest && (
-                        <button
-                          onClick={clearDestination}
-                          className="p-2 hover:bg-slate-100 rounded-xl"
-                          aria-label="Clear destination"
-                        >
-                          <X size={16} className="text-slate-400" />
-                        </button>
-                      )}
-                      {searchingDest && (
-                        <Loader
-                          size={16}
-                          className="animate-spin text-blue-600"
-                        />
+                      {scanError && (
+                        <p className="text-[11px] text-red-600 mt-1">
+                          {scanError}
+                        </p>
                       )}
                     </div>
-                    {scanError && (
-                      <p className="text-[11px] text-red-600 mt-1">
-                        {scanError}
-                      </p>
-                    )}
+                    <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
+                      <span className="font-semibold">{t("map.to")}</span>
+                      <span className="font-bold text-slate-800">
+                        {destination || t("map.destination")}
+                      </span>
+                    </div>
                   </div>
-                  <div className="hidden sm:flex flex-col gap-1 text-[11px] text-slate-500 pr-1">
-                    <span className="font-semibold">{t("map.to")}</span>
-                    <span className="font-bold text-slate-800">
-                      {destination || t("map.destination")}
-                    </span>
-                  </div>
-                </div>
 
-                {showDestSuggestions && destSuggestions.length > 0 && (
-                  <div className="mt-3 -mx-4 rounded-2xl border border-blue-200 bg-white shadow-xl max-h-64 overflow-y-auto">
-                    {destSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => selectLocation(suggestion, false)}
-                        className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
-                      >
-                        <div className="flex items-start gap-2">
-                          <Target size={16} className="text-blue-600 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-bold text-slate-800">
-                              {suggestion.placeName}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {suggestion.context}
-                            </p>
+                  {showDestSuggestions && destSuggestions.length > 0 && (
+                    <div className="mt-3 -mx-4 rounded-2xl border border-blue-200 bg-white shadow-xl max-h-64 overflow-y-auto">
+                      {destSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => selectLocation(suggestion, false)}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
+                        >
+                          <div className="flex items-start gap-2">
+                            <Target
+                              size={16}
+                              className="text-blue-600 mt-0.5"
+                            />
+                            <div>
+                              <p className="text-sm font-bold text-slate-800">
+                                {suggestion.placeName}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {suggestion.context}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-3 flex items-center gap-3">
-                  {canAnalyze ? (
-                    <button
-                      onClick={runSafetyScan}
-                      disabled={!canAnalyze}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {scanningRoute
-                        ? `${t("map.analyzing")}`
-                        : t("map.analyzeBtn")}
-                    </button>
-                  ) : (
-                    <div className="flex-1 text-center text-xs text-slate-500 font-semibold bg-slate-100 py-3 rounded-xl">
-                      {t("map.selectPrompt")}
+                        </button>
+                      ))}
                     </div>
                   )}
+
+                  <div className="mt-3 flex items-center gap-3">
+                    {canAnalyze ? (
+                      <button
+                        onClick={runSafetyScan}
+                        disabled={!canAnalyze}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {scanningRoute
+                          ? `${t("map.analyzing")}`
+                          : t("map.analyzeBtn")}
+                      </button>
+                    ) : (
+                      <div className="flex-1 text-center text-xs text-slate-500 font-semibold bg-slate-100 py-3 rounded-xl">
+                        {t("map.selectPrompt")}
+                      </div>
+                    )}
+                    <button
+                      onClick={resetView}
+                      className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
+                    >
+                      {t("map.reset")}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* SCANNING OVERLAY */}
+        {scanningRoute && (
+          <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-md mx-4">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <Loader size={48} className="animate-spin text-blue-500" />
+                  <Shield
+                    size={24}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-300"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-lg mb-2">
+                    {t("map.safetyScan")}
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    {t("map.analyzingTerrain")}
+                  </p>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-blue-500 h-full animate-pulse w-3/4"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BOTTOM JOURNEY PANEL */}
+        {safetyReport && (
+          <div className="absolute inset-x-0 bottom-0 z-[1000] px-4 pb-6 pointer-events-none">
+            <div className="max-w-4xl mx-auto bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-5 pointer-events-auto space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                  <Compass size={16} className="text-blue-600" />
+                  {uiState === "navigating"
+                    ? t("map.navigationActiveShort")
+                    : t("map.routeAnalyzed")}
+                </div>
+                <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${getRiskStyles(safetyReport.riskLevel).dot}`}
+                  ></span>
+                  {safetyReport.source || "System"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3 text-xs text-slate-700">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <p className="font-semibold text-slate-500 mb-1">
+                    {t("map.distance")}
+                  </p>
+                  <p className="text-base font-black text-slate-900">
+                    {safetyReport.distance || "-"}
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <p className="font-semibold text-slate-500 mb-1">
+                    {t("map.safetyScore")}
+                  </p>
+                  <p className="text-base font-black text-slate-900">
+                    {safetyReport.riskScore ?? 0}%
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <p className="font-semibold text-slate-500 mb-1">
+                    {t("map.riskLevel")}
+                  </p>
+                  <p className="text-base font-black text-slate-900">
+                    {safetyReport.riskLevel || "UNKNOWN"}
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <p className="font-semibold text-slate-500 mb-1">
+                    {t("map.aiExplanation")}
+                  </p>
+                  <p className="text-sm font-semibold text-slate-800 line-clamp-2">
+                    {safetyReport.reason || "Route rationale unavailable"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <div className="font-mono">
+                  {new Date(
+                    safetyReport.timestamp || Date.now(),
+                  ).toLocaleTimeString()}
+                </div>
+                {uiState === "navigating" && (
+                  <div className="flex items-center gap-2 text-blue-600 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    {t("map.navigationActiveShort")} {navigationProgress}%
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={isNavigating ? resetView : startNavigation}
+                  disabled={!safetyReport || !routeGeoJSON || scanningRoute}
+                  className={`flex-1 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                    isNavigating
+                      ? "bg-red-600 text-white"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  } disabled:opacity-60 disabled:cursor-not-allowed`}
+                >
+                  <Navigation size={18} />
+                  {isNavigating ? t("map.endJourney") : t("map.startJourney")}
+                </button>
+                {!isNavigating && (
                   <button
                     onClick={resetView}
                     className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
                   >
-                    {t("map.reset")}
+                    {t("map.close")}
                   </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* SCANNING OVERLAY */}
-      {scanningRoute && (
-        <div className="absolute inset-0 z-[1001] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-md mx-4">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                <Loader size={48} className="animate-spin text-blue-500" />
-                <Shield
-                  size={24}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-300"
-                />
-              </div>
-              <div className="text-center">
-                <p className="font-bold text-lg mb-2">{t("map.safetyScan")}</p>
-                <p className="text-sm text-slate-400">
-                  {t("map.analyzingTerrain")}
-                </p>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-blue-500 h-full animate-pulse w-3/4"></div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* BOTTOM JOURNEY PANEL */}
-      {safetyReport && (
-        <div className="absolute inset-x-0 bottom-0 z-[1000] px-4 pb-6 pointer-events-none">
-          <div className="max-w-4xl mx-auto bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-5 pointer-events-auto space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-                <Compass size={16} className="text-blue-600" />
-                {uiState === "navigating"
-                  ? t("map.navigationActiveShort")
-                  : t("map.routeAnalyzed")}
-              </div>
-              <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-2">
-                <span
-                  className={`w-2 h-2 rounded-full ${getRiskStyles(safetyReport.riskLevel).dot}`}
-                ></span>
-                {safetyReport.source || "System"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-3 text-xs text-slate-700">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">
-                  {t("map.distance")}
-                </p>
-                <p className="text-base font-black text-slate-900">
-                  {safetyReport.distance || "-"}
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">
-                  {t("map.safetyScore")}
-                </p>
-                <p className="text-base font-black text-slate-900">
-                  {safetyReport.riskScore ?? 0}%
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">
-                  {t("map.riskLevel")}
-                </p>
-                <p className="text-base font-black text-slate-900">
-                  {safetyReport.riskLevel || "UNKNOWN"}
-                </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p className="font-semibold text-slate-500 mb-1">
-                  {t("map.aiExplanation")}
-                </p>
-                <p className="text-sm font-semibold text-slate-800 line-clamp-2">
-                  {safetyReport.reason || "Route rationale unavailable"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <div className="font-mono">
-                {new Date(
-                  safetyReport.timestamp || Date.now(),
-                ).toLocaleTimeString()}
-              </div>
-              {uiState === "navigating" && (
-                <div className="flex items-center gap-2 text-blue-600 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                  {t("map.navigationActiveShort")} {navigationProgress}%
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={isNavigating ? resetView : startNavigation}
-                disabled={!safetyReport || !routeGeoJSON || scanningRoute}
-                className={`flex-1 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
-                  isNavigating
-                    ? "bg-red-600 text-white"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                } disabled:opacity-60 disabled:cursor-not-allowed`}
-              >
-                <Navigation size={18} />
-                {isNavigating ? t("map.endJourney") : t("map.startJourney")}
-              </button>
-              {!isNavigating && (
-                <button
-                  onClick={resetView}
-                  className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-95 transition-all"
-                >
-                  {t("map.close")}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NAVIGATION STRIP */}
-      {isNavigating && (
-        <div className="absolute top-4 left-0 right-0 z-[1000] px-4 pointer-events-none">
-          <div
-            className={`max-w-4xl mx-auto p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto ${
-              safetyReport?.riskLevel === "SAFE" ||
-              safetyReport?.riskLevel === "LOW"
-                ? "bg-green-600"
-                : safetyReport?.riskLevel === "MODERATE" ||
-                    safetyReport?.riskLevel === "CAUTION"
-                  ? "bg-yellow-600"
-                  : "bg-red-600"
-            } text-white`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-              <div>
-                <p className="text-sm font-bold">{t("map.navigationActive")}</p>
-                <p className="text-xs opacity-90">
-                  {safetyReport?.riskLevel} {safetyReport?.distance}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={resetView}
-              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all"
+        {/* NAVIGATION STRIP */}
+        {isNavigating && (
+          <div className="absolute top-4 left-0 right-0 z-[1000] px-4 pointer-events-none">
+            <div
+              className={`max-w-4xl mx-auto p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto ${
+                safetyReport?.riskLevel === "SAFE" ||
+                safetyReport?.riskLevel === "LOW"
+                  ? "bg-green-600"
+                  : safetyReport?.riskLevel === "MODERATE" ||
+                      safetyReport?.riskLevel === "CAUTION"
+                    ? "bg-yellow-600"
+                    : "bg-red-600"
+              } text-white`}
             >
-              {t("map.exit")}
-            </button>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <div>
+                  <p className="text-sm font-bold">
+                    {t("map.navigationActive")}
+                  </p>
+                  <p className="text-xs opacity-90">
+                    {safetyReport?.riskLevel} {safetyReport?.distance}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={resetView}
+                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all"
+              >
+                {t("map.exit")}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-      {/* SOS BUTTON */}
+        )}
+      </div>
     </div>
   );
 }

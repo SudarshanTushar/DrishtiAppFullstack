@@ -101,13 +101,13 @@ class ErrorBoundary extends React.Component {
             <div className="error-icon">⚠️</div>
             <h1 className="error-title">System Error</h1>
             <p className="error-message">
-              An unexpected error occurred. The app will restart.
+              An unexpected error occurred. The system will restart.
             </p>
             <button
               className="error-button"
               onClick={() => window.location.reload()}
             >
-              Restart App
+              Restart System
             </button>
             <details className="error-details">
               <summary>Technical Details</summary>

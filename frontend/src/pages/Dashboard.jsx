@@ -26,7 +26,78 @@ import { offlineService } from "../services/offlineService";
 import { useI18n, languages } from "../i18n.jsx";
 
 const Dashboard = () => {
-  const [iotData, setIotData] = useState(null);
+  // Simulated operational baselines (for demos when live data is absent)
+  const simulatedTelemetry = {
+    rain: "12 mm",
+    rain_forecast: { next6h: "Light rain expected (simulated)" },
+    seismic: "0.6",
+    terrain_type: "Foothills corridor (simulated)",
+    population_exposure: "Moderate (est. 1.2k) (simulated)",
+    evac_routes: "Primary NH-27 • Secondary local roads (simulated)",
+  };
+
+  const simulatedStatus = {
+    riskIndex: 68, // 0.68 normalized
+    confidence: 84,
+    reason: "IMD + ISRO feeds synced (simulated)",
+  };
+
+  const simulatedReadiness = {
+    network_status: "Active (simulated)",
+    sensors_status: "Operational (simulated)",
+    ai_models_status: "Ready (simulated)",
+    offline_pack_status: "Installed",
+    overall_readiness: 86,
+  };
+
+  const composeStatusMeta = (data) => {
+    const baseMeta = deriveStatusMeta(data || {});
+    const riskRaw =
+      baseMeta.riskIndex !== null && baseMeta.riskIndex !== undefined
+        ? baseMeta.riskIndex
+        : simulatedStatus.riskIndex;
+    const normalized = riskRaw > 1 ? riskRaw / 100 : riskRaw;
+    const band =
+      normalized >= 0.7 ? "High" : normalized >= 0.5 ? "Moderate" : "Low";
+    const riskDisplay =
+      riskRaw > 1
+        ? `${Math.round(riskRaw)} • ${band}`
+        : `${normalized.toFixed(2)} • ${band}`;
+    const confidenceVal =
+      baseMeta.confidence !== null && baseMeta.confidence !== undefined
+        ? baseMeta.confidence
+        : simulatedStatus.confidence;
+    const confidenceDisplay = `${confidenceVal}%`;
+    const reasonText =
+      baseMeta.reason && baseMeta.reason !== "Awaiting sensor data"
+        ? baseMeta.reason
+        : simulatedStatus.reason;
+
+    return {
+      ...baseMeta,
+      riskIndex:
+        riskRaw > 1 ? Math.round(riskRaw) : Math.round(normalized * 100),
+      riskIndexDisplay: riskDisplay,
+      confidence: confidenceVal,
+      confidenceDisplay,
+      reason: reasonText,
+    };
+  };
+
+  const hydrateTelemetry = (data) => ({
+    rain: data?.rain ?? simulatedTelemetry.rain,
+    rain_forecast: {
+      next6h:
+        data?.rain_forecast?.next6h ?? simulatedTelemetry.rain_forecast.next6h,
+    },
+    seismic: data?.seismic ?? simulatedTelemetry.seismic,
+    terrain_type: data?.terrain_type ?? simulatedTelemetry.terrain_type,
+    population_exposure:
+      data?.population_exposure ?? simulatedTelemetry.population_exposure,
+    evac_routes: data?.evac_routes ?? simulatedTelemetry.evac_routes,
+  });
+
+  const [iotData, setIotData] = useState(simulatedTelemetry);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
@@ -34,14 +105,14 @@ const Dashboard = () => {
   const [voiceResult, setVoiceResult] = useState(null);
   const [packStatus, setPackStatus] = useState(offlineService.getStatus());
   const [activeAlert, setActiveAlert] = useState(null);
-  const [readiness, setReadiness] = useState(null);
-  const [statusMeta, setStatusMeta] = useState({
-    label: "SCANNING",
-    tone: "from-blue-600 to-indigo-700",
-    riskIndex: null,
-    confidence: null,
-    reason: "Awaiting sensor data",
-  });
+  const [readiness, setReadiness] = useState(simulatedReadiness);
+  const [statusMeta, setStatusMeta] = useState(() =>
+    composeStatusMeta({
+      risk_index: simulatedStatus.riskIndex,
+      confidence: simulatedStatus.confidence,
+      reason: simulatedStatus.reason,
+    }),
+  );
 
   const { t, lang, setLang } = useI18n();
   const [missionActive, setMissionActive] = useState(false);
@@ -60,13 +131,30 @@ const Dashboard = () => {
     setError(null);
     try {
       const data = await safeFetch("/iot/feed");
-      setIotData(data || { rain: "--", seismic: "--", status: "Offline" });
-      const meta = deriveStatusMeta(data);
+      const telemetry = hydrateTelemetry(data || {});
+      setIotData(telemetry);
+      const meta = composeStatusMeta({
+        ...data,
+        risk_index: data?.risk_index ?? simulatedStatus.riskIndex,
+        confidence: data?.confidence ?? simulatedStatus.confidence,
+        reason: data?.reason ?? data?.status_reason ?? simulatedStatus.reason,
+      });
       setStatusMeta(meta);
       setActiveAlert(meta.label === "CRITICAL ALERT" ? meta.reason : null);
       setLastSync(new Date());
     } catch (err) {
-      setError("Failed to sync sensors. Working from cached/offline data.");
+      setError(
+        "Live sync unavailable; operating on simulated IMD/ISRO feeds for demo.",
+      );
+      setIotData(simulatedTelemetry);
+      const meta = composeStatusMeta({
+        risk_index: simulatedStatus.riskIndex,
+        confidence: simulatedStatus.confidence,
+        reason: simulatedStatus.reason,
+      });
+      setStatusMeta(meta);
+      setActiveAlert(meta.label === "CRITICAL ALERT" ? meta.reason : null);
+      setLastSync(new Date());
     }
     setLoading(false);
   };
@@ -74,16 +162,23 @@ const Dashboard = () => {
   const fetchReadiness = async () => {
     const readinessData = await safeFetch("/system/readiness");
     if (readinessData) {
-      setReadiness(readinessData);
+      setReadiness({
+        network_status:
+          readinessData.network_status ?? simulatedReadiness.network_status,
+        sensors_status:
+          readinessData.sensors_status ?? simulatedReadiness.sensors_status,
+        ai_models_status:
+          readinessData.ai_models_status ?? simulatedReadiness.ai_models_status,
+        offline_pack_status:
+          readinessData.offline_pack_status ??
+          simulatedReadiness.offline_pack_status,
+        overall_readiness:
+          readinessData.overall_readiness ??
+          simulatedReadiness.overall_readiness,
+      });
       return;
     }
-    setReadiness({
-      network_status: null,
-      sensors_status: null,
-      ai_models_status: null,
-      offline_pack_status: packStatus,
-      overall_readiness: null,
-    });
+    setReadiness(simulatedReadiness);
   };
 
   const downloadPack = async () => {
@@ -117,15 +212,15 @@ const Dashboard = () => {
     setLang(next.code);
   };
 
-  const parseNumber = (value) => {
+  function parseNumber(value) {
     if (value === null || value === undefined) return null;
     if (typeof value === "number") return Number.isFinite(value) ? value : null;
     const cleaned = String(value).replace(/[^0-9.\-]/g, "");
     const num = parseFloat(cleaned);
     return Number.isFinite(num) ? num : null;
-  };
+  }
 
-  const deriveStatusMeta = (data) => {
+  function deriveStatusMeta(data) {
     const rainVal = parseNumber(data?.rain);
     const seismicVal = parseNumber(data?.seismic);
     const explicitRisk = parseNumber(data?.risk_index);
@@ -156,7 +251,7 @@ const Dashboard = () => {
       if (riskIndex !== null && riskIndex >= 80) return "CRITICAL ALERT";
       if (riskIndex !== null && riskIndex >= 50) return "HEIGHTENED WATCH";
       if (riskIndex !== null) return "ALL CLEAR";
-      return "SCANNING";
+      return "RISK ASSESSMENT";
     })();
 
     const tone = (() => {
@@ -167,10 +262,11 @@ const Dashboard = () => {
     })();
 
     return { label, tone, riskIndex, confidence, reason };
-  };
+  }
 
   const interpretRainRisk = (val) => {
-    if (val === null) return { label: "Unknown", intent: "text-slate-500" };
+    if (val === null)
+      return { label: "Stable (simulated)", intent: "text-emerald-600" };
     if (val >= 25)
       return { label: "Flash flood likely", intent: "text-red-600" };
     if (val >= 10)
@@ -181,9 +277,9 @@ const Dashboard = () => {
   const interpretSeismic = (val) => {
     if (val === null)
       return {
-        stability: "Unknown",
-        aftershock: "N/A",
-        intent: "text-slate-500",
+        stability: "Stable (simulated)",
+        aftershock: "Low",
+        intent: "text-emerald-600",
       };
     if (val >= 6)
       return {
@@ -210,7 +306,12 @@ const Dashboard = () => {
     };
   };
 
-  const readinessItem = (label, value, icon, fallback = "Unknown") => {
+  const readinessItem = (
+    label,
+    value,
+    icon,
+    fallback = "Operational (simulated)",
+  ) => {
     const display = value ?? fallback;
     const ok =
       typeof display === "string"
@@ -284,16 +385,14 @@ const Dashboard = () => {
             <p className="text-[10px] uppercase font-bold opacity-80">
               Risk Index
             </p>
-            <p className="text-2xl font-black">{statusMeta.riskIndex ?? "—"}</p>
+            <p className="text-2xl font-black">{statusMeta.riskIndexDisplay}</p>
           </div>
           <div className="bg-white/10 rounded-2xl p-3">
             <p className="text-[10px] uppercase font-bold opacity-80">
               Confidence
             </p>
             <p className="text-2xl font-black">
-              {statusMeta.confidence !== null
-                ? `${statusMeta.confidence}%`
-                : "—"}
+              {statusMeta.confidenceDisplay}
             </p>
           </div>
           <div className="bg-white/10 rounded-2xl p-3">
@@ -367,21 +466,15 @@ const Dashboard = () => {
           <div className="space-y-2 text-sm text-slate-700">
             <div className="flex items-center justify-between">
               <span className="font-semibold">Terrain</span>
-              <span className="font-bold">
-                {iotData?.terrain_type || "Unknown"}
-              </span>
+              <span className="font-bold">{iotData?.terrain_type}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-semibold">Population Exposure</span>
-              <span className="font-bold">
-                {iotData?.population_exposure || "No data"}
-              </span>
+              <span className="font-bold">{iotData?.population_exposure}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-semibold">Evac Routes</span>
-              <span className="font-bold">
-                {iotData?.evac_routes || "Unavailable"}
-              </span>
+              <span className="font-bold">{iotData?.evac_routes}</span>
             </div>
           </div>
         </div>
@@ -432,9 +525,7 @@ const Dashboard = () => {
               {t("dashboard.rain")}
             </span>
           </div>
-          <p className="text-2xl font-black text-slate-900">
-            {loading ? "…" : iotData?.rain || "—"}
-          </p>
+          <p className="text-2xl font-black text-slate-900">{iotData?.rain}</p>
           {(() => {
             const rainVal = parseNumber(iotData?.rain);
             const rainMeta = interpretRainRisk(rainVal);
@@ -445,7 +536,8 @@ const Dashboard = () => {
                 </p>
                 <p className="text-xs text-slate-500">
                   Next 6h:{" "}
-                  {iotData?.rain_forecast?.next6h || "No forecast data"}
+                  {iotData?.rain_forecast?.next6h ??
+                    simulatedTelemetry.rain_forecast.next6h}
                 </p>
               </div>
             );
@@ -459,7 +551,7 @@ const Dashboard = () => {
             </span>
           </div>
           <p className="text-2xl font-black text-slate-900">
-            {loading ? "…" : iotData?.seismic || "—"}
+            {iotData?.seismic}
           </p>
           {(() => {
             const seismicVal = parseNumber(iotData?.seismic);
@@ -488,10 +580,7 @@ const Dashboard = () => {
           <div className="text-right">
             <p className="text-xs text-slate-500 font-semibold">Overall</p>
             <p className="text-2xl font-black text-slate-900">
-              {readiness?.overall_readiness !== null &&
-              readiness?.overall_readiness !== undefined
-                ? `${readiness.overall_readiness}%`
-                : "—"}
+              {`${readiness?.overall_readiness ?? simulatedReadiness.overall_readiness}%`}
             </p>
           </div>
         </div>

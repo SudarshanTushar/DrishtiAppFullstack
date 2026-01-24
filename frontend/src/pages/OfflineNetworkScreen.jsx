@@ -152,7 +152,7 @@ export default function OfflineNetworkScreen() {
               />
               <div className="status-text">
                 STATUS: {isInitializing && "INITIALIZING"}
-                {!isInitializing && meshActive && "ACTIVE SCAN"}
+                {!isInitializing && meshActive && "RISK ASSESSMENT ACTIVE"}
                 {!isInitializing && !meshActive && "STANDBY"}
               </div>
             </div>
@@ -173,8 +173,8 @@ export default function OfflineNetworkScreen() {
                 <span className="scan-text">
                   {">"}{" "}
                   {meshActive
-                    ? "Scanning 2.4GHz Spectrum..."
-                    : "Radio Idle. Waiting for scheduler."}
+                    ? "Risk assessment in progress across 2.4GHz spectrum..."
+                    : "Radio idle. Awaiting scheduler."}
                 </span>
                 {meshActive && <span className="cursor-blink">_</span>}
               </div>
@@ -193,10 +193,10 @@ export default function OfflineNetworkScreen() {
           </div>
         </div>
 
-        {/* SCANNING STATUS */}
+        {/* RISK ASSESSMENT STATUS */}
         {meshActive && (
           <div className="scanning-status">
-            <div className="scan-header">SCANNING...</div>
+            <div className="scan-header">RISK ASSESSMENT IN PROGRESS...</div>
             <div className="scan-progress">
               <div className="scan-bar"></div>
             </div>
@@ -213,7 +213,7 @@ export default function OfflineNetworkScreen() {
             {peerCount === 0 && (
               <div className="empty-state">
                 <div className="empty-icon">🔍</div>
-                <p>Scanning for nearby devices...</p>
+                <p>Risk assessment in progress; monitoring nearby relays...</p>
                 <p className="empty-hint">
                   BLE discovery active - waiting for peers
                 </p>

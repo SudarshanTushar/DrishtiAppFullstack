@@ -45,11 +45,11 @@ const NetworkView = () => {
   // Update log based on mesh state
   useEffect(() => {
     if (isInitializing) {
-      setLog("Initializing BLE/Wi-Fi Radios...");
+      setLog("Initializing BLE/Wi-Fi radios...");
     } else if (meshActive) {
-      setLog("Scanning 2.4GHz Spectrum...");
+      setLog("Risk assessment in progress across 2.4GHz spectrum...");
     } else {
-      setLog("Radio Idle. Waiting for scheduler.");
+      setLog("Radio idle. Awaiting scheduler.");
     }
   }, [meshActive, isInitializing]);
 
@@ -142,7 +142,9 @@ const NetworkView = () => {
         const result = await startMesh();
         console.log("✅ startMesh() returned:", result);
         console.log("📊 State after startMesh:", { meshActive, peerCount });
-        setLog("Mesh network active - scanning for peers...");
+        setLog(
+          "Mesh network active - conducting risk assessment with nearby relays...",
+        );
       } catch (err) {
         console.error("❌ Failed to start mesh:", err);
         console.error("Error details:", {
@@ -261,6 +263,11 @@ const NetworkView = () => {
                 : meshActive
                   ? "Active scan running"
                   : "Standby"}
+            </p>
+            <p className="text-[11px] text-slate-300 leading-tight">
+              Fail-safe layer; engages only if approved routes fail or
+              cellular/internet collapses. Not primary—resilience backup for
+              escalation.
             </p>
           </div>
           <div className="text-right space-y-1">

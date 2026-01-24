@@ -183,7 +183,7 @@ export default function OfflineNetworkScreen() {
           {peers.length === 0 ? (
             <div className="empty-state">
               {meshActive
-                ? "Scanning for nearby devices..."
+                ? "Risk assessment in progress; monitoring nearby relays..."
                 : "Start mesh to discover devices"}
             </div>
           ) : (

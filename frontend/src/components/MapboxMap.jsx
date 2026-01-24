@@ -30,6 +30,31 @@ const MapboxMap = ({
   const navMarkerRef = useRef(null);
   const navAnimRef = useRef(null);
 
+  const restyleAttribution = () => {
+    const container = mapContainer.current;
+    if (!container) return;
+
+    const logo = container.querySelector(".mapboxgl-ctrl-logo");
+    if (logo) {
+      logo.style.pointerEvents = "none";
+      logo.style.opacity = "0.6";
+      logo.style.transform = "scale(0.85)";
+      logo.style.filter = "grayscale(100%)";
+    }
+
+    const attrib = container.querySelector(".mapboxgl-ctrl-attrib");
+    if (attrib) {
+      attrib.style.pointerEvents = "none";
+      attrib.style.opacity = "0.65";
+      attrib.style.fontSize = "10px";
+      attrib.style.background = "rgba(15, 23, 42, 0.55)";
+      attrib.style.color = "#e2e8f0";
+      attrib.style.padding = "2px 6px";
+      attrib.style.borderRadius = "6px";
+      attrib.style.backdropFilter = "blur(2px)";
+    }
+  };
+
   // Map style URLs
   const styleUrls = {
     streets: "mapbox://styles/mapbox/streets-v12",
@@ -47,7 +72,6 @@ const MapboxMap = ({
         style: styleUrls[mapStyle],
         center: [startCoords[1], startCoords[0]],
         zoom: 10,
-        attributionControl: false,
       });
     } catch (error) {
       console.error("❌ Failed to create map:", error);
@@ -64,6 +88,7 @@ const MapboxMap = ({
       setMapReady(true);
       onMapLoad(map.current);
       map.current.resize();
+      restyleAttribution();
     });
 
     map.current.on("error", (e) => {
@@ -108,6 +133,7 @@ const MapboxMap = ({
     setMapReady(false); // force downstream effects to rerun after style switch
     map.current.setStyle(styleUrls[mapStyle]);
     map.current.once("style.load", handleStyle);
+    map.current.once("style.load", restyleAttribution);
 
     return () => {
       if (map.current) {
