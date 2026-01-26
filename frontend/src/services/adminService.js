@@ -69,4 +69,47 @@ export const adminService = {
       : `/admin/simulate/stop?api_key=${ADMIN_TOKEN}`;
     return await safeFetch(endpoint, { method: "POST" });
   },
+
+  // ============================================================
+  // 🚀 NEW: CLASSIFIED SITREP GENERATOR (Binary Handler)
+  // ============================================================
+  async downloadSitrep() {
+    if (!ADMIN_TOKEN) return false;
+
+    try {
+      // 1. Request the Binary Stream (PDF)
+      const response = await fetch(`${API_BASE_URL}/admin/sitrep/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${ADMIN_TOKEN}`,
+          'Accept': 'application/pdf', // CRITICAL: Tell backend we want bytes, not JSON
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to generate SITREP");
+
+      // 2. Convert Stream to Blob
+      const blob = await response.blob();
+      
+      // 3. Create Invisible Download Link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // 4. Generate Military-Style Filename
+      const timestamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,"");
+      link.setAttribute('download', `SITREP_CLASSIFIED_${timestamp}.pdf`);
+      
+      // 5. Trigger Click & Cleanup
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url); // Prevent memory leaks
+      
+      return true;
+    } catch (error) {
+      console.error("SITREP Download Failed:", error);
+      return false;
+    }
+  }
 };
