@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import meshNetworkService from "../services/meshNetworkService";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { registerPlugin } from '@capacitor/core';
 
-/**
- * React Hook for Mesh Networking
- * Provides easy access to mesh network functionality in React components
- *
- * @param {Object} options - Hook options
- * @param {boolean} [options.autoStart=false] - Automatically start mesh on mount
- * @returns {Object} Mesh network state and functions
- */
+// 1. Register the Native Plugin directly
+// This name 'MeshNetwork' MUST match the @CapacitorPlugin(name="MeshNetwork") in Java
+const MeshPlugin = registerPlugin('MeshNetwork');
+
 export function useMeshNetwork(options = {}) {
   const { autoStart = false } = options;
 
@@ -17,194 +13,145 @@ export function useMeshNetwork(options = {}) {
   const [messages, setMessages] = useState([]);
   const [lastMessage, setLastMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [myNodeId, setMyNodeId] = useState(null);
 
-  const peersIntervalRef = useRef(null);
-
-  // Start mesh network
+  // 2. Initialize & Start Mesh
   const startMesh = useCallback(async () => {
-    console.log("[useMeshNetwork] startMesh called");
+    console.log("[MeshHook] Starting...");
     try {
       setError(null);
-      console.log("[useMeshNetwork] Calling meshNetworkService.startMesh()...");
 
-      const result = await meshNetworkService.startMesh();
-      console.log("[useMeshNetwork] startMesh result:", result);
-
-      // Reflect running state only when native start succeeds
-      setIsRunning(!!result?.success);
-      console.log(
-        "[useMeshNetwork] State set to isRunning=",
-        !!result?.success,
-      );
-
-      // Start polling for peers
-      if (peersIntervalRef.current) {
-        clearInterval(peersIntervalRef.current);
+      // A. Check/Request Permissions First
+      // This calls the 'checkPermissions' method we added to MeshPlugin.java
+      const permResult = await MeshPlugin.checkPermissions();
+      
+      if (!permResult.granted) {
+        throw new Error("Bluetooth/Location permissions denied");
       }
 
-      peersIntervalRef.current = setInterval(async () => {
-        try {
-          const currentPeers = await meshNetworkService.getPeers();
-          console.log("[useMeshNetwork] Peers:", currentPeers.length);
-          setPeers(currentPeers);
-        } catch (err) {
-          console.error("[useMeshNetwork] Failed to get peers:", err);
-        }
-      }, 3000);
+      // B. Start the Service
+      const result = await MeshPlugin.startMesh();
+      console.log("[MeshHook] Started:", result);
+      
+      setMyNodeId(result.nodeId || "ME");
+      setIsRunning(true);
 
-      // Load initial messages
-      try {
-        const storedMessages = await meshNetworkService.getMessages();
-        console.log("[useMeshNetwork] Messages:", storedMessages.length);
-        setMessages(storedMessages);
-      } catch (err) {
-        console.error("[useMeshNetwork] Failed to get messages:", err);
-      }
     } catch (err) {
-      console.error("[useMeshNetwork] Failed to start mesh:", err);
-      setError(err.message || "Failed to start mesh network");
+      console.error("[MeshHook] Start Failed:", err);
+      setError(err.message || "Failed to start mesh");
       setIsRunning(false);
     }
   }, []);
 
-  // Stop mesh network
+  // 3. Stop Mesh
   const stopMesh = useCallback(async () => {
     try {
-      await meshNetworkService.stopMesh();
+      await MeshPlugin.stopMesh();
       setIsRunning(false);
       setPeers([]);
-
-      if (peersIntervalRef.current) {
-        clearInterval(peersIntervalRef.current);
-        peersIntervalRef.current = null;
-      }
     } catch (err) {
-      console.error("[useMeshNetwork] Failed to stop mesh:", err);
-      setError(err.message);
+      console.error("[MeshHook] Stop Failed:", err);
     }
   }, []);
 
-  // Send message
-  const sendMessage = useCallback(async (payload, options = {}) => {
+  // 4. Send Message
+  const sendMessage = useCallback(async (text, destination = 'BROADCAST') => {
+    // Optimistic UI Update (Show message immediately)
+    const newMsg = {
+      sender: 'ME',
+      content: text,
+      timestamp: Date.now(),
+      status: 'sending'
+    };
+    
+    setMessages(prev => [newMsg, ...prev]);
+
     try {
-      setError(null);
-      const result = await meshNetworkService.sendMessage({
-        payload:
-          typeof payload === "string" ? payload : JSON.stringify(payload),
-        ...options,
-      });
-
-      // Refresh messages
-      const updatedMessages = await meshNetworkService.getMessages();
-      setMessages(updatedMessages);
-
-      return result;
+      // Call Native Method
+      await MeshPlugin.sendMessage({ message: text, destination });
+      
+      // Update status to sent
+      setMessages(prev => prev.map(m => 
+        m === newMsg ? { ...m, status: 'sent' } : m
+      ));
+      
+      return true;
     } catch (err) {
-      console.error("[useMeshNetwork] Failed to send message:", err);
-      setError(err.message);
-      throw err;
+      console.error("[MeshHook] Send Failed:", err);
+      setError("Failed to send message");
+      
+      // Update status to failed
+      setMessages(prev => prev.map(m => 
+        m === newMsg ? { ...m, status: 'failed' } : m
+      ));
+      return false;
     }
   }, []);
 
-  // Send SOS
-  const sendSOS = useCallback(async (message, lat, lng, metadata = {}) => {
-    try {
-      setError(null);
-      const result = await meshNetworkService.sendSOS({
-        message,
-        lat,
-        lng,
-        metadata,
-      });
+  // 5. Send SOS (Wrapper for high priority message)
+  const sendSOS = useCallback(async (text, lat, lng) => {
+    const sosPayload = `SOS|${lat}|${lng}|${text}`;
+    return sendMessage(sosPayload, 'BROADCAST');
+  }, [sendMessage]);
 
-      // Refresh messages
-      const updatedMessages = await meshNetworkService.getMessages();
-      setMessages(updatedMessages);
-
-      return result;
-    } catch (err) {
-      console.error("[useMeshNetwork] Failed to send SOS:", err);
-      setError(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Refresh messages manually
-  const refreshMessages = useCallback(async () => {
-    try {
-      const updatedMessages = await meshNetworkService.getMessages();
-      setMessages(updatedMessages);
-    } catch (err) {
-      console.error("[useMeshNetwork] Failed to refresh messages:", err);
-    }
-  }, []);
-
-  // Setup event listeners
+  // 6. Event Listeners (The Bridge to Java)
   useEffect(() => {
-    const handleMessageReceived = (message) => {
-      console.log("[useMeshNetwork] New message received:", message);
-      setLastMessage(message);
+    let peerListener = null;
+    let msgListener = null;
 
-      // Add to messages list
-      setMessages((prev) => [message, ...prev]);
-    };
+    const setupListeners = async () => {
+      // Listener 1: Peer Found
+      peerListener = await MeshPlugin.addListener('peerFound', (peer) => {
+        console.log("[MeshHook] Peer Found:", peer);
+        setPeers(prev => {
+          if (prev.find(p => p.id === peer.peerId)) return prev;
+          return [...prev, { id: peer.peerId, lastSeen: Date.now(), status: 'connected' }];
+        });
+      });
 
-    const handlePeerDiscovered = (peer) => {
-      console.log("[useMeshNetwork] Peer discovered:", peer);
-      setPeers((prev) => {
-        const exists = prev.some((p) => p.id === peer.peerId);
-        if (exists) return prev;
-        return [...prev, { id: peer.peerId, lastSeen: Date.now() }];
+      // Listener 2: Message Received
+      msgListener = await MeshPlugin.addListener('messageReceived', (msg) => {
+        console.log("[MeshHook] Message Received:", msg);
+        const incomingMsg = {
+          sender: msg.sender,
+          content: msg.content, // Ensure Java sends 'content'
+          timestamp: Date.now(),
+          isIncoming: true
+        };
+        setLastMessage(incomingMsg);
+        setMessages(prev => [incomingMsg, ...prev]);
       });
     };
 
-    const handlePeerLost = (peer) => {
-      console.log("[useMeshNetwork] Peer lost:", peer);
-      setPeers((prev) => prev.filter((p) => p.id !== peer.peerId));
-    };
+    setupListeners();
 
-    meshNetworkService.on("messageReceived", handleMessageReceived);
-    meshNetworkService.on("peerDiscovered", handlePeerDiscovered);
-    meshNetworkService.on("peerLost", handlePeerLost);
-
+    // Cleanup
     return () => {
-      meshNetworkService.off("messageReceived", handleMessageReceived);
-      meshNetworkService.off("peerDiscovered", handlePeerDiscovered);
-      meshNetworkService.off("peerLost", handlePeerLost);
+      if (peerListener) peerListener.remove();
+      if (msgListener) msgListener.remove();
     };
   }, []);
 
-  // Auto-start if requested
+  // Auto-start logic
   useEffect(() => {
-    if (autoStart) {
+    if (autoStart && !isRunning) {
       startMesh();
     }
-
-    // Cleanup on unmount
-    return () => {
-      if (peersIntervalRef.current) {
-        clearInterval(peersIntervalRef.current);
-      }
-    };
-  }, [autoStart, startMesh]);
+  }, [autoStart, isRunning, startMesh]);
 
   return {
-    // State
     isRunning,
     peers,
     messages,
     lastMessage,
     error,
-
-    // Actions
+    myNodeId,
     startMesh,
     stopMesh,
     sendMessage,
     sendSOS,
-    refreshMessages,
-
-    // Stats
+    refreshMessages: () => {}, // No-op for direct plugin, state is managed here
     peerCount: peers.length,
-    messageCount: messages.length,
+    messageCount: messages.length
   };
 }
