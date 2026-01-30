@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">Team Matrix</string>
     <string name="title_activity_main">Team Matrix</string>
-    
-    <string name="package_name">com.gov.drishtiner</string>
-    <string name="custom_url_scheme">com.gov.drishtiner</string>
+    <string name="package_name">com.drishti.ne</string>
+    <string name="custom_url_scheme">com.drishti.ne</string>
 </resources>

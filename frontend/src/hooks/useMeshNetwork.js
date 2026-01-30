@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { registerPlugin } from '@capacitor/core';
 
 // 1. Register the Native Plugin directly

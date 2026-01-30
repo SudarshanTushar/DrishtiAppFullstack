@@ -1,0 +1,28 @@
+[Unit]
+Description=Drishti-NE AI Disaster Routing API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/DrishtiApp/backend
+Environment="PATH=/root/DrishtiApp/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/root/DrishtiApp/venv/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 120
+
+# Restart configuration
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=10
+
+# Logging
+StandardOutput=append:/var/log/drishti_backend.log
+StandardError=append:/var/log/drishti_backend_error.log
+
+# Resource limits (prevent OOM on DigitalOcean droplet)
+MemoryMax=2G
+CPUQuota=150%
+
+[Install]
+WantedBy=multi-user.target

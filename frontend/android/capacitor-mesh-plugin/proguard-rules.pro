@@ -1,2 +1,0 @@
--dontwarn com.drishti.mesh.**
--keep class com.drishti.mesh.** { *; }

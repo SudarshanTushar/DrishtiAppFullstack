@@ -1,132 +1,203 @@
-import React, { useState, useEffect } from 'react';
-import { User, Phone, HeartPulse, Save, ShieldCheck, FileText, Info } from 'lucide-react';
-import { profileService } from '../services/profileService';
+import React, { useState, useEffect } from "react";
+import { 
+  Globe, Smartphone, Trash2, RefreshCw, 
+  Battery, Shield, Info, ChevronRight, Moon, 
+  Volume2, Power, User, Save, Activity, CheckCircle, HeartPulse
+} from "lucide-react";
+import { useI18n, languages } from "../i18n";
+import { Device } from '@capacitor/device';
 
 const SettingsView = () => {
-  const [formData, setFormData] = useState(profileService.getProfile());
+  const { t, lang, setLang } = useI18n();
+  const [batteryInfo, setBatteryInfo] = useState({ level: 0.85, isCharging: true });
+  const [storageUsed, setStorageUsed] = useState("124 MB");
   const [saved, setSaved] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // --- 1. PROFILE STATE ---
+  const [profile, setProfile] = useState(() => {
+    const savedProfile = localStorage.getItem("drishti_profile");
+    return savedProfile ? JSON.parse(savedProfile) : { name: "", phone: "", blood: "", medical: "" };
+  });
 
-  const handleSave = () => {
-    profileService.saveProfile(formData);
+  const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
+
+  const handleSaveProfile = () => {
+    localStorage.setItem("drishti_profile", JSON.stringify(profile));
     setSaved(true);
+    if (navigator.vibrate) navigator.vibrate(50);
     setTimeout(() => setSaved(false), 2000);
   };
 
+  // --- 2. DEVICE INFO ---
+  useEffect(() => {
+    const getInfo = async () => {
+      try {
+        const info = await Device.getBatteryInfo();
+        setBatteryInfo(info);
+      } catch (e) {
+        setBatteryInfo({ level: 0.92, isCharging: false }); // Fallback
+      }
+    };
+    getInfo();
+  }, []);
+
+  // --- 3. SYSTEM ACTIONS ---
+  const handleResetBoot = () => {
+    if (window.confirm("Re-run system boot sequence?")) {
+      sessionStorage.removeItem("routeai_booted");
+      window.location.reload();
+    }
+  };
+
+  const handleClearCache = () => {
+    localStorage.clear();
+    setStorageUsed("0 MB");
+    alert("System Cache Purged.");
+  };
+
   return (
-    <div className="pb-24 animate-in slide-in-from-right">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 font-sans animate-in slide-in-from-right duration-300">
       
-      {/* 1. IDENTITY HEADER */}
-      <div className="bg-slate-900 text-white p-6 pb-8 rounded-b-3xl shadow-lg mb-6">
-        <h2 className="text-2xl font-black tracking-tight">Citizen Profile</h2>
-        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Attached to Emergency Beacons</p>
+      {/* HEADER */}
+      <div className="bg-white px-6 py-6 border-b border-slate-200 sticky top-0 z-10">
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">Settings</h1>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">System Configuration</p>
       </div>
 
-      {/* 2. FORM */}
-      <div className="px-4 space-y-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Full Name</label>
-            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <User size={18} className="text-slate-400" />
-              <input 
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="bg-transparent w-full font-bold text-slate-800 focus:outline-none"
-                placeholder="Enter Name"
-              />
+      <div className="p-4 space-y-6">
+
+        {/* --- LANGUAGE SECTION --- */}
+        <section>
+          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Localization</h2>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            {languages.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                className={`w-full flex items-center justify-between p-4 border-b border-slate-100 last:border-0 transition-colors ${
+                  lang === l.code ? "bg-blue-50" : "hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${lang === l.code ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
+                    <Globe size={18} />
+                  </div>
+                  <span className={`font-bold ${lang === l.code ? "text-blue-700" : "text-slate-700"}`}>
+                    {l.label}
+                  </span>
+                </div>
+                {lang === l.code && <div className="w-2 h-2 bg-blue-600 rounded-full"></div>}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* --- PROFILE SECTION (NEW) --- */}
+        <section>
+          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">User Profile</h2>
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+             {/* Name */}
+             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                <User size={16} className="text-slate-400" />
+                <input name="name" value={profile.name} onChange={handleProfileChange} placeholder="Enter Full Name" className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
+             </div>
+             
+             <div className="grid grid-cols-2 gap-3">
+                {/* Blood */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                    <Activity size={16} className="text-red-400" />
+                    <input name="blood" value={profile.blood} onChange={handleProfileChange} placeholder="Blood Grp" className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
+                </div>
+                {/* Phone */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
+                    <Smartphone size={16} className="text-slate-400" />
+                    <input name="phone" value={profile.phone} onChange={handleProfileChange} placeholder="Phone No." className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
+                </div>
+             </div>
+
+             {/* Medical */}
+             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex gap-3">
+                <HeartPulse size={16} className="text-purple-400 mt-1" />
+                <textarea name="medical" value={profile.medical} onChange={handleProfileChange} placeholder="Medical Notes (Allergies etc.)" className="bg-transparent w-full text-sm font-medium focus:outline-none resize-none h-16"/>
+             </div>
+
+             <button onClick={handleSaveProfile} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all ${saved ? "bg-emerald-600 text-white" : "bg-slate-900 text-white"}`}>
+                {saved ? <CheckCircle size={16} /> : <Save size={16} />}
+                {saved ? "Saved!" : "Save Profile"}
+             </button>
+          </div>
+        </section>
+
+        {/* --- DEVICE DIAGNOSTICS --- */}
+        <section>
+          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Device Health</h2>
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 grid grid-cols-2 gap-4">
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                <div className="flex items-center gap-2 mb-2 text-emerald-600">
+                    <Battery size={18} />
+                    <span className="text-[10px] font-bold uppercase">Power</span>
+                </div>
+                <p className="text-xl font-black text-emerald-800">{(batteryInfo.level * 100).toFixed(0)}%</p>
+                <p className="text-[10px] text-emerald-600">{batteryInfo.isCharging ? "Charging" : "Discharging"}</p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                <div className="flex items-center gap-2 mb-2 text-blue-600">
+                    <Smartphone size={18} />
+                    <span className="text-[10px] font-bold uppercase">Storage</span>
+                </div>
+                <p className="text-xl font-black text-blue-800">{storageUsed}</p>
+                <p className="text-[10px] text-blue-600">Map Cache</p>
             </div>
           </div>
+        </section>
 
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Emergency Contact</label>
-            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <Phone size={18} className="text-slate-400" />
-              <input 
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="bg-transparent w-full font-bold text-slate-800 focus:outline-none"
-                placeholder="+91 XXXXX XXXXX"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Blood Group</label>
-              <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <ActivityIcon size={18} className="text-red-400" />
-                <input 
-                  name="bloodGroup"
-                  value={formData.bloodGroup}
-                  onChange={handleChange}
-                  className="bg-transparent w-full font-bold text-slate-800 focus:outline-none"
-                  placeholder="O+"
-                />
+        {/* --- SYSTEM ACTIONS --- */}
+        <section>
+          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Maintenance</h2>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            
+            <button onClick={handleClearCache} className="w-full flex items-center justify-between p-4 border-b border-slate-100 active:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><Trash2 size={18} /></div>
+                <span className="font-medium text-sm text-slate-700">Clear Local Data</span>
               </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </button>
+
+            <button onClick={handleResetBoot} className="w-full flex items-center justify-between p-4 border-b border-slate-100 active:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><RefreshCw size={18} /></div>
+                <span className="font-medium text-sm text-slate-700">Replay Boot Sequence</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-300" />
+            </button>
+
+            <div className="p-4 flex items-center justify-between bg-slate-50">
+               <div className="flex items-center gap-3">
+                 <div className="p-2 bg-slate-200 text-slate-600 rounded-lg"><Moon size={18} /></div>
+                 <span className="font-medium text-sm text-slate-700">Dark Mode</span>
+               </div>
+               <span className="text-xs font-bold text-slate-400">AUTO</span>
             </div>
-          </div>
 
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Medical Notes</label>
-            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <HeartPulse size={18} className="text-slate-400" />
-              <input 
-                name="medicalConditions"
-                value={formData.medicalConditions}
-                onChange={handleChange}
-                className="bg-transparent w-full font-bold text-slate-800 focus:outline-none"
-                placeholder="Allergies, Diabetes, etc."
-              />
+          </div>
+        </section>
+
+        {/* --- ABOUT --- */}
+        <div className="text-center pt-6 pb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-200 rounded-full mb-2">
+                <Shield size={12} className="text-slate-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Version 1.0.4 (Beta)</span>
             </div>
-          </div>
-
-          <button 
-            onClick={handleSave} 
-            className={`w-full py-4 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 ${saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white active:scale-95'}`}
-          >
-            {saved ? <CheckIcon /> : <Save size={18} />}
-            {saved ? "IDENTITY SAVED" : "SAVE PROFILE"}
-          </button>
-        </div>
-
-        {/* 3. SYSTEM INFO */}
-        <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200 space-y-2">
-           <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">System Audit</h3>
-           
-           <div className="flex justify-between items-center text-xs">
-             <span className="text-slate-500 flex items-center gap-2"><ShieldCheck size={14}/> Security Level</span>
-             <span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">Gov-Grade (A)</span>
-           </div>
-           
-           <div className="flex justify-between items-center text-xs">
-             <span className="text-slate-500 flex items-center gap-2"><FileText size={14}/> Build Version</span>
-             <span className="font-mono text-slate-700">v2.4.0-RC</span>
-           </div>
-
-           <div className="flex justify-between items-center text-xs">
-             <span className="text-slate-500 flex items-center gap-2"><Info size={14}/> Data Sources</span>
-             <span className="font-bold text-blue-600">ISRO • IMD • NDMA</span>
-           </div>
+            <p className="text-[10px] text-slate-400">
+                Built for DrishtiNE Hackathon<br/>
+                Team Matrix • 2026
+            </p>
         </div>
 
       </div>
     </div>
   );
 };
-
-// Icons helper
-const ActivityIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-);
-const CheckIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-);
 
 export default SettingsView;

@@ -3,40 +3,108 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* 1. TYPOGRAPHY & THEME ROOT */
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* 2. COLOR SCHEME */
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a; /* Slate 950 - Tactical Base */
+
+  /* 3. TACTICAL PALETTE VARIABLES */
   --gov-blue: #0f172a;
   --gov-accent: #3b82f6;
   --danger: #ef4444;
   --safe: #10b981;
+
+  /* 4. RENDERING OPTIMIZATIONS */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: #f8fafc; /* Slate-50 */
-  color: #0f172a; /* Slate-900 */
   margin: 0;
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none; /* Prevents "bounce" on mobile */
-}
-
-/* LEAFLET MAP HACKS (Crucial for mobile) */
-.leaflet-container {
   width: 100%;
   height: 100%;
-  background: #e2e8f0;
+  overflow-x: hidden;
+  
+  /* Mobile Optimizations */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none; /* Prevents "bounce" effect on mobile */
+}
+
+/* --- 🗺️ MAP ENGINE FIXES --- */
+/* Ensures maps don't show white flashes while loading */
+.mapboxgl-map, .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: #0f172a; 
   z-index: 0;
 }
 
-/* CUSTOM ANIMATIONS */
+/* --- 🖱️ CUSTOM SCROLLBAR (Tech/Sci-Fi Feel) --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1e293b; /* Slate 800 */
+}
+::-webkit-scrollbar-thumb {
+  background: #475569; /* Slate 600 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b; /* Slate 500 */
+}
+
+/* --- 📱 UTILITY CLASSES --- */
+/* Safe Area Padding for iPhone Notch/Home Bar */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* --- ⚡ TACTICAL ANIMATIONS --- */
 @keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
+  0% { 
+    transform: translateY(-100%); 
+  }
+  100% { 
+    transform: translateY(100%); 
+  }
 }
 
+/* The Scanline Overlay Effect */
 .animate-scanline {
-  animation: scanline 2s linear infinite;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.1), transparent);
+  animation: scanline 3s linear infinite;
+  pointer-events: none; /* Allows clicking through the animation */
+  z-index: 10;
 }
 
-/* MAP RISK LINES */
-.risk-high { stroke: #ef4444; stroke-width: 4; stroke-dasharray: 10,5; }
-.risk-med { stroke: #f59e0b; stroke-width: 4; }
-.risk-low { stroke: #10b981; stroke-width: 4; }
+/* --- 📊 RISK VISUALIZATIONS (For SVG Maps) --- */
+.risk-high { 
+  stroke: #ef4444; 
+  stroke-width: 3; 
+  fill: rgba(239, 68, 68, 0.2);
+  filter: drop-shadow(0 0 4px #ef4444); 
+}
+.risk-med { 
+  stroke: #f59e0b; 
+  stroke-width: 2; 
+  fill: rgba(245, 158, 11, 0.2);
+}
+.risk-low { 
+  stroke: #10b981; 
+  stroke-width: 2; 
+  fill: rgba(16, 185, 129, 0.2);
+}

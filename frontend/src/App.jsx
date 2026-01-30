@@ -1,284 +1,297 @@
-import React, { Suspense, lazy, useState, useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  NavLink,
-} from "react-router-dom";
-import {
-  LayoutDashboard,
-  Map as MapIcon,
-  Radio,
-  AlertTriangle,
-  ShieldCheck,
-  ArrowRight,
-  Activity,
-  Cpu,
+import { useState, useEffect } from "react";
+import { 
+  LayoutDashboard, Map as MapIcon, Radio, Signal, ShieldAlert, 
+  Menu, UserCircle, Cpu, ShieldCheck, ArrowRight, Brain 
 } from "lucide-react";
+
+// --- PAGES ---
+import DashboardView from "./pages/Dashboard";
+import MapView from "./pages/MapView";
+import SOSView from "./pages/SOSView";
+import NetworkView from "./pages/NetworkView";
+import AdminPanel from "./pages/AdminPanel";
+import SettingsView from "./pages/SettingsView";
+
+// --- LOGIC ---
 import { useI18n, languages } from "./i18n.jsx";
 
-// LAZY LOAD MODULES (Performance Firewall)
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const MapView = lazy(() => import("./pages/MapView"));
-const NetworkView = lazy(() => import("./pages/NetworkView"));
-const SOSView = lazy(() => import("./pages/SOSView"));
-const AdminView = lazy(() => import("./pages/AdminView"));
-const SettingsView = lazy(() => import("./pages/SettingsView"));
-
 const App = () => {
+  // --- STATE MANAGEMENT ---
   const { t, lang, setLang, hasChosen } = useI18n();
-  const [bootState, setBootState] = useState("BOOTING"); // BOOTING, WELCOME, READY
+  const [bootState, setBootState] = useState("BOOTING"); // BOOTING -> WELCOME -> READY
   const [logs, setLogs] = useState([]);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // --- SYSTEM BOOT SEQUENCE ---
+  // --- 1. BOOT SEQUENCE LOGIC ---
   useEffect(() => {
-    // Check if user has already seen the boot sequence
-    const isReturningUser = sessionStorage.getItem("routeai_booted");
-
-    if (isReturningUser) {
+    // Skip boot if already done in this session
+    if (sessionStorage.getItem("routeai_booted")) {
       setBootState("READY");
       return;
     }
 
     const sequence = [
-      { text: t("app.boot.kernel"), delay: 500 },
-      { text: t("app.boot.bhuvan"), delay: 1200 },
-      { text: t("app.boot.imd"), delay: 2000 },
-      { text: t("app.boot.terrain"), delay: 2800 },
-      { text: t("app.boot.secure"), delay: 3500 },
+      { text: "Initializing Matrix Kernel...", delay: 500 },
+      { text: "Connecting to Neural Engine...", delay: 1200 },
+      { text: "Syncing IoT Sensor Mesh...", delay: 2000 },
+      { text: "Loading Terrain Maps...", delay: 2800 },
+      { text: "Establishing Secure Uplink...", delay: 3500 },
     ];
 
     let timeouts = [];
-
     sequence.forEach(({ text, delay }) => {
-      const t = setTimeout(() => {
+      timeouts.push(setTimeout(() => {
         setLogs((prev) => [...prev, text]);
-      }, delay);
-      timeouts.push(t);
+      }, delay));
     });
 
-    const finalT = setTimeout(() => {
+    timeouts.push(setTimeout(() => {
       setBootState("WELCOME");
-    }, 4000);
-    timeouts.push(finalT);
+    }, 4000));
 
     return () => timeouts.forEach(clearTimeout);
-  }, [t]);
+  }, []);
 
   const enterSystem = () => {
     sessionStorage.setItem("routeai_booted", "true");
     setBootState("READY");
   };
 
-  // LANGUAGE GATE BEFORE ANY UI
+  // --- 2. ONLINE/OFFLINE LISTENER ---
+  useEffect(() => {
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", handleStatus);
+    window.addEventListener("offline", handleStatus);
+    return () => {
+      window.removeEventListener("online", handleStatus);
+      window.removeEventListener("offline", handleStatus);
+    };
+  }, []);
+
+  // --- 3. RENDER CONTENT SWITCHER ---
+  const renderContent = () => {
+    switch (activeTab) {
+      case "dashboard": return <DashboardView />;
+      case "map": return <MapView />;
+      case "sos": return <SOSView />;
+      case "mesh": return <NetworkView />;
+      case "admin": return <AdminPanel />;
+      case "settings": return <SettingsView />;
+      default: return <DashboardView />;
+    }
+  };
+
+  // ==========================================
+  // VIEW 1: LANGUAGE SELECTION
+  // ==========================================
   if (!hasChosen) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-6">
-        <div className="w-full max-w-md bg-slate-800/80 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-6 animate-in fade-in duration-500 font-sans">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-8 space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-2xl shadow-lg shadow-blue-900/40">
               🌐
             </div>
             <div>
-              <p className="text-[11px] uppercase text-slate-400 font-bold">
-                RouteAI NE
-              </p>
-              <h2 className="text-xl font-black">{t("app.name")}</h2>
+              <p className="text-[10px] uppercase text-slate-400 font-bold tracking-[0.2em]">Team Matrix</p>
+              <h2 className="text-2xl font-black tracking-tight text-white">{t("app.name")}</h2>
             </div>
           </div>
-          <p className="text-sm text-slate-300">Select your system language</p>
-          <div className="grid grid-cols-2 gap-2">
+          
+          <div className="grid grid-cols-1 gap-3">
             {languages.map((l) => (
               <button
                 key={l.code}
                 onClick={() => setLang(l.code)}
-                className={`flex items-center justify-between px-3 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                className={`flex items-center justify-between px-5 py-4 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
                   l.code === lang
-                    ? "border-blue-500 bg-blue-600/10 text-white"
-                    : "border-slate-600 bg-slate-800 text-slate-200 hover:border-blue-400"
+                    ? "border-blue-500 bg-blue-600/20 text-white shadow-lg shadow-blue-900/20"
+                    : "border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
               >
-                <span>{l.label}</span>
-                {l.code === lang && <span className="text-[10px]">✓</span>}
+                <div className="flex items-center gap-3">
+                    <span className="text-xl">{l.flag}</span>
+                    <span>{l.label}</span>
+                </div>
+                {l.code === lang && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400">
-            You can change this anytime in Settings.
-          </p>
         </div>
       </div>
     );
   }
 
-  // --- RENDER: BOOT SCREEN ---
+  // ==========================================
+  // VIEW 2: BOOT TERMINAL
+  // ==========================================
   if (bootState === "BOOTING") {
     return (
-      <div className="h-screen bg-slate-950 text-green-500 font-mono p-8 flex flex-col justify-end pb-24">
-        <div className="mb-4 flex items-center gap-2 text-blue-500 animate-pulse">
-          <Cpu size={24} />
-          <span className="font-bold tracking-widest">
-            {t("app.boot.bios")}
-          </span>
+      <div className="h-screen bg-slate-950 text-emerald-500 font-mono p-8 flex flex-col justify-end pb-32">
+        <div className="mb-6 flex items-center gap-3 text-blue-500 animate-pulse">
+          <Cpu size={32} />
+          <span className="font-bold tracking-[0.2em] text-lg">SYSTEM BOOT</span>
         </div>
-        <div className="space-y-2 text-xs md:text-sm">
+        <div className="space-y-3 text-xs md:text-sm font-medium">
           {logs.map((log, i) => (
-            <div
-              key={i}
-              className="border-l-2 border-green-800 pl-2 animate-in slide-in-from-left fade-in duration-300"
-            >
+            <div key={i} className="border-l-2 border-emerald-800 pl-3 animate-in slide-in-from-left fade-in duration-300">
               {`> ${log}`}
             </div>
           ))}
-          <div className="h-4 w-2 bg-green-500 animate-bounce ml-2 mt-2"></div>
+          <div className="h-5 w-2 bg-emerald-500 animate-bounce ml-3 mt-4"></div>
         </div>
       </div>
     );
   }
 
-  // --- RENDER: WELCOME SCREEN ---
+  // ==========================================
+  // VIEW 3: WELCOME SCREEN
+  // ==========================================
   if (bootState === "WELCOME") {
     return (
-      <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-900/20 rounded-full blur-[100px] animate-pulse"></div>
+      <div className="h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+        {/* Background Ambient Glow */}
+        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse pointer-events-none"></div>
 
-        <div className="z-10 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-700">
-          <div className="w-24 h-24 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
-            <ShieldCheck size={48} className="text-white" />
+        <div className="z-10 flex flex-col items-center text-center space-y-8 animate-in zoom-in duration-700">
+          <div className="w-28 h-28 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/30 ring-4 ring-white/5">
+            <ShieldCheck size={56} className="text-white drop-shadow-md" />
           </div>
 
           <div>
-            <h1 className="text-4xl font-black tracking-tighter">
+            <h1 className="text-5xl font-black tracking-tighter text-white mb-2">
               {t("app.name")}
-              <span className="text-blue-500">NE</span>
             </h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
-              {t("app.welcomeTag")}
+            <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.3em]">
+              AI Response Unit
             </p>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur p-4 rounded-xl border border-slate-700 max-w-xs">
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {t("app.welcomeQuote")}
+          <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 max-w-xs shadow-xl">
+            <div className="flex items-center gap-2 mb-3">
+                 <Brain size={18} className="text-purple-400"/>
+                 <p className="text-xs font-bold text-slate-200">System Ready</p>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">
+              DistilBERT model loaded. Secure link established. Awaiting pilot command.
             </p>
           </div>
 
           <button
             onClick={enterSystem}
-            className="bg-white text-slate-900 px-8 py-4 rounded-xl font-bold flex items-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl mt-4"
+            className="w-full max-w-xs bg-white text-slate-950 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
           >
-            {t("app.initButton")} <ArrowRight size={18} />
+            {t("app.initButton")} <ArrowRight size={22} />
           </button>
         </div>
       </div>
     );
   }
 
-  // --- RENDER: MAIN APP ---
+  // ==========================================
+  // VIEW 4: MAIN APP (MOBILE SHELL)
+  // ==========================================
   return (
-    <Router>
-      <div className="min-h-screen bg-slate-50 flex flex-col animate-in fade-in duration-500">
-        {/* TOP BAR */}
-        <header className="bg-white sticky top-0 z-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
-            <div>
-              <h1 className="text-lg font-black text-slate-800 leading-none">
-                {t("app.name")}
-                <span className="text-blue-600">NE</span>
-              </h1>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                {t("app.subtitle")}
-              </p>
+    <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      
+      {/* 📱 TOP HEADER (Sticky) */}
+      <header className="flex-none h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 flex items-center justify-between px-4 z-50 safe-top">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <ShieldAlert size={18} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-sm font-black tracking-wider text-white leading-none">
+              TEAM MATRIX
+            </h1>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                {isOnline ? "ONLINE" : "MESH MODE"}
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-green-50 px-2 py-1 rounded border border-green-100">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-bold text-green-700">
-              {t("app.online")}
-            </span>
-          </div>
-        </header>
+        </div>
+        <button 
+          onClick={() => setActiveTab("settings")}
+          className={`p-2.5 rounded-full transition-all active:scale-95 ${
+            activeTab === 'settings' 
+              ? "bg-slate-800 text-white" 
+              : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+          }`}
+        >
+          <UserCircle size={22} />
+        </button>
+      </header>
 
-        {/* MAIN CONTENT AREA */}
-        <main className="flex-1 overflow-y-auto pb-24 relative">
-          <Suspense
-            fallback={
-              <div className="flex flex-col items-center justify-center h-60 space-y-4">
-                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs font-bold text-slate-400 uppercase">
-                  Loading Module...
-                </p>
-              </div>
-            }
-          >
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/map" element={<MapView />} />
-              <Route path="/network" element={<NetworkView />} />
-              <Route path="/sos" element={<SOSView />} />
-              <Route path="/admin" element={<AdminView />} />
-              <Route path="/command" element={<AdminView />} />
-              <Route path="/settings" element={<SettingsView />} />
-            </Routes>
-          </Suspense>
-        </main>
+      {/* 📱 MAIN CONTENT AREA (Scrollable) */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 pb-28 relative scroll-smooth no-scrollbar">
+        {renderContent()}
+      </main>
 
-        {/* BOTTOM NAVIGATION */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center z-50 pb-safe">
-          <NavLink
-            to="/"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-all ${isActive ? "text-blue-600 scale-105" : "text-slate-400"}`
-            }
+      {/* 📱 BOTTOM NAVIGATION BAR (Fixed) */}
+      <nav className="flex-none h-[88px] bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex justify-around items-start pt-3 px-2 pb-safe z-50 absolute bottom-0 w-full shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
+        <NavButton 
+          active={activeTab === "dashboard"} 
+          onClick={() => setActiveTab("dashboard")} 
+          icon={<LayoutDashboard size={22} />} 
+          label={t("nav.status")} 
+        />
+        <NavButton 
+          active={activeTab === "map"} 
+          onClick={() => setActiveTab("map")} 
+          icon={<MapIcon size={22} />} 
+          label={t("nav.route")} 
+        />
+        
+        {/* SOS BUTTON (Floating Center) */}
+        <div className="relative -top-8">
+          <button 
+            onClick={() => setActiveTab("sos")}
+            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
+              activeTab === "sos" 
+                ? "bg-red-500 scale-105 shadow-red-500/50 ring-4 ring-red-500/20" 
+                : "bg-slate-800 border border-slate-700 text-red-500 shadow-lg"
+            }`}
           >
-            <LayoutDashboard size={22} />
-            <span className="text-[10px] font-bold">{t("nav.status")}</span>
-          </NavLink>
+            <Radio size={26} className={activeTab === "sos" ? "animate-pulse text-white" : ""} strokeWidth={2.5} />
+          </button>
+        </div>
 
-          <NavLink
-            to="/map"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-all ${isActive ? "text-blue-600 scale-105" : "text-slate-400"}`
-            }
-          >
-            <MapIcon size={22} />
-            <span className="text-[10px] font-bold">{t("nav.route")}</span>
-          </NavLink>
+        <NavButton 
+          active={activeTab === "mesh"} 
+          onClick={() => setActiveTab("mesh")} 
+          icon={<Signal size={22} />} 
+          label={t("nav.mesh")} 
+        />
+        <NavButton 
+          active={activeTab === "admin"} 
+          onClick={() => setActiveTab("admin")} 
+          icon={<Menu size={22} />} 
+          label={t("nav.cmd")} 
+        />
+      </nav>
 
-          <NavLink
-            to="/sos"
-            className={({ isActive }) =>
-              `relative -top-6 bg-red-600 text-white p-4 rounded-full shadow-xl shadow-red-200 transition-transform ${isActive ? "scale-110" : "hover:scale-105"}`
-            }
-          >
-            <AlertTriangle size={28} />
-          </NavLink>
-
-          <NavLink
-            to="/network"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-all ${isActive ? "text-blue-600 scale-105" : "text-slate-400"}`
-            }
-          >
-            <Radio size={22} />
-            <span className="text-[10px] font-bold">{t("nav.mesh")}</span>
-          </NavLink>
-
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-all ${isActive ? "text-blue-600 scale-105" : "text-slate-400"}`
-            }
-          >
-            <ShieldCheck size={22} />
-            <span className="text-[10px] font-bold">{t("nav.cmd")}</span>
-          </NavLink>
-        </nav>
-      </div>
-    </Router>
+    </div>
   );
 };
+
+// Helper Component for Nav Items
+const NavButton = ({ active, onClick, icon, label }) => (
+  <button 
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center w-16 gap-1.5 transition-all duration-300 active:scale-95 ${
+      active ? "text-blue-500" : "text-slate-500 hover:text-slate-300"
+    }`}
+  >
+    <div className={`transition-transform duration-300 ${active ? "-translate-y-1" : ""}`}>
+      {icon}
+    </div>
+    <span className={`text-[9px] font-bold tracking-wide transition-opacity duration-300 ${active ? "opacity-100" : "opacity-70"}`}>
+      {label}
+    </span>
+  </button>
+);
 
 export default App;
