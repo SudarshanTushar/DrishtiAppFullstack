@@ -1,21 +1,30 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.drishti.ne"
+    // ⚠️ CRITICAL: This namespace matches your build, do not change.
+    namespace "com.teammatrix.disasterapp"
+    
     compileSdkVersion rootProject.ext.compileSdkVersion
+    
     defaultConfig {
-        applicationId "com.drishti.ne"
-        minSdkVersion rootProject.ext.minSdkVersion
+        applicationId "com.teammatrix.disasterapp"
+        
+        // ✅ THE FIX: We bumped this to 24 to fix "Manifest Merger Failed"
+        // Most modern map/bluetooth plugins require at least 23 or 24.
+        minSdkVersion 24 
+        
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    
     buildTypes {
         release {
             minifyEnabled false
