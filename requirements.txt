@@ -1,21 +1,40 @@
-blinker==1.9.0
-click==8.3.1
-colorama==0.4.6
-Flask==3.1.2
-flask-cors==6.0.2
-itsdangerous==2.2.0
-Jinja2==3.1.6
-joblib==1.5.3
-MarkupSafe==3.0.3
-numpy==2.4.1
-pandas==2.3.3
-python-dateutil==2.9.0.post0
-pytz==2025.2
-scikit-learn==1.8.0
-scipy==1.17.0
-six==1.17.0
-threadpoolctl==3.6.0
-tzdata==2025.3
-Werkzeug==3.1.5
-xgboost==3.1.3
-gunicorn
+# ============================================================================
+# 🚁 DRISHTI-NE Backend Dependencies
+# ============================================================================
+
+# --- Core Web Framework ---
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+gunicorn==21.2.0
+python-multipart==0.0.9
+pydantic==2.6.1
+
+# --- HTTP & Utilities ---
+requests==2.31.0
+python-dotenv==1.0.1
+
+# --- AI & Machine Learning ---
+torch==2.2.0
+transformers==4.37.2
+scikit-learn==1.4.0
+numpy==1.26.4
+pandas==2.2.0
+filelock
+huggingface-hub
+
+# --- Geospatial & Routing ---
+osmnx
+networkx
+shapely
+geopandas
+
+# --- Database ---
+SQLAlchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+GeoAlchemy2==0.14.3
+
+# --- PDF Generation ---
+fpdf2==2.7.7
+
+# Note: Use --extra-index-url https://download.pytorch.org/whl/cpu for CPU-only PyTorch
