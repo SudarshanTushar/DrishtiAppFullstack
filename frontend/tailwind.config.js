@@ -4,9 +4,6 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    // Explicitly include these just to be safe
-    "./components/**/*.{js,jsx}",
-    "./pages/**/*.{js,jsx}",
   ],
   theme: {
     container: {
@@ -22,11 +19,14 @@ export default {
         sans: ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
-      // 2. SAFE AREA PADDING (For Mobile Notches)
-      padding: {
-        'safe': 'env(safe-area-inset-bottom)',
+      // 2. SAFE AREA PADDING (FIXED FOR MOBILE NOTCHES)
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
       },
-      // 3. ANIMATION KEYFRAMES (Merged)
+      // 3. ANIMATION KEYFRAMES
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -45,9 +45,14 @@ export default {
         scan: {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
-        }
+        },
+        // CRT Scanline Effect
+        scanline: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
       },
-      // 4. ANIMATION UTILITIES (Merged)
+      // 4. ANIMATION UTILITIES
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
@@ -58,6 +63,6 @@ export default {
     },
   },
   plugins: [
-    require("tailwindcss-animate") // ✅ Essential for UI components
+    require("tailwindcss-animate")
   ],
 }

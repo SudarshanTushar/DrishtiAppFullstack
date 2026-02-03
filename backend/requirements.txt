@@ -13,9 +13,8 @@ psycopg2-binary==2.9.9
 GeoAlchemy2==0.14.3
 fpdf2==2.7.7
 python-dotenv==1.0.1
-# --- NEW AI WEAPONS ---
-torch==2.2.0+cpu
+# --- AI CORE ---
+torch==2.2.0+cpu --index-url https://download.pytorch.org/whl/cpu
 transformers==4.37.2
 filelock
 huggingface-hub
---extra-index-url https://download.pytorch.org/whl/cpu

@@ -1,58 +1,50 @@
+import joblib
+import os
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-import random
 
-class LandslidePredictor:
+class RandomForestPredictor:
     def __init__(self):
-        # 1. TRAIN THE AI MODEL ON STARTUP (The "Learning" Phase)
-        # Features: [Rainfall(mm), Slope(deg), Soil_Moisture(%)]
-        # 0 = Safe, 1 = Risk
-        X_train = np.array([
-            [0, 10, 20], [10, 15, 30], [50, 20, 40],   # Safe conditions
-            [120, 35, 80], [200, 45, 90], [150, 40, 85] # Dangerous conditions
-        ])
-        y_train = np.array([0, 0, 0, 1, 1, 1])
+        self.model_path = "intelligence/landslide_model.pkl"
+        self.model = None
+        self._load_model()
 
-        self.scaler = StandardScaler()
-        X_scaled = self.scaler.fit_transform(X_train)
-        
-        self.model = LogisticRegression()
-        self.model.fit(X_scaled, y_train)
-        print(" [AI CORE] Landslide Prediction Model Trained (Accuracy: 98%)")
+    def _load_model(self):
+        if os.path.exists(self.model_path):
+            try:
+                self.model = joblib.load(self.model_path)
+                print(f"🌲 [AI] Random Forest Loaded: {self.model_path}")
+            except Exception as e:
+                print(f"⚠️ [AI] Model Load Failed: {e}")
+        else:
+            print("⚠️ [AI] No trained model found. Using Heuristic Mode.")
 
-    def predict(self, rainfall, lat, lng):
+    def predict_risk(self, features: dict) -> float:
         """
-        Returns a Risk Probability (0-100%) based on live inputs.
+        Returns Risk Probability (0.0 - 1.0)
         """
-        # Simulate Slope based on Latitude (Hilly North-East vs Plains)
-        # Real app would fetch DEM data here.
-        slope = 40 if lat > 26.5 else 15 
+        # 1. REAL AI MODE
+        if self.model:
+            try:
+                # Prepare input vector [rain, slope, soil]
+                # Default mock values for missing keys
+                vector = np.array([[
+                    features.get('rainfall', 0),
+                    features.get('slope', 30),
+                    features.get('soil', 50)
+                ]])
+                
+                # Predict Class (0, 1, 2)
+                prediction = self.model.predict(vector)[0]
+                
+                # Convert Class to Probability (Roughly)
+                if prediction == 2: return 0.9 # Danger
+                if prediction == 1: return 0.5 # Caution
+                return 0.1 # Safe
+            except Exception as e:
+                print(f"Prediction Error: {e}")
         
-        # Simulate Soil Moisture based on recent rain
-        soil_moisture = min(rainfall * 0.8, 100)
-
-        # Prepare Input Vector
-        features = np.array([[rainfall, slope, soil_moisture]])
-        features_scaled = self.scaler.transform(features)
-        
-        # Get AI Probability
-        probability = self.model.predict_proba(features_scaled)[0][1]
-        risk_score = int(probability * 100)
-
-        # Classify
-        classification = "LOW"
-        if risk_score > 40: classification = "MODERATE"
-        if risk_score > 75: classification = "HIGH"
-        if risk_score > 90: classification = "CRITICAL"
-
-        return {
-            "ai_score": risk_score,
-            "risk_level": classification,
-            "slope_angle": slope,
-            "soil_type": "Laterite (High Clay)" if slope > 30 else "Alluvial",
-            "factors": {
-                "rain_impact": f"{rainfall}mm",
-                "slope_risk": "Steep" if slope > 30 else "Stable"
-            }
-        }
+        # 2. HEURISTIC FALLBACK (If model fails or missing)
+        rain = features.get('rainfall', 0)
+        if rain > 80: return 0.85
+        if rain > 50: return 0.55
+        return 0.2

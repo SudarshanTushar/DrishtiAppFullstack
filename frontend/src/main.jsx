@@ -1,16 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { HashRouter } from 'react-router-dom'; // 👈 CRITICAL: Must use HashRouter for Android APK
 import App from './App.jsx';
 import './index.css';
 import { I18nProvider } from './i18n.jsx';
 
-// --- 🗺️ MAP ENGINE FIXES (Crucial for Offline Maps) ---
-// 1. Import Leaflet CSS so the map isn't broken
+// --- 🗺️ LEAFLET FIXES (Keep as fallback) ---
 import "leaflet/dist/leaflet.css"; 
-// 2. Import Leaflet JS to fix the "Invisible Marker" bug in production
 import L from 'leaflet';
-
-// 3. Manually override the default icon logic
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -24,7 +21,6 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // --- 🛡️ CRASH PROTECTION SYSTEM ---
-// This prevents "White Screen of Death" during the demo.
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -39,11 +35,10 @@ class ErrorBoundary extends React.Component {
     console.error("🚨 SYSTEM CRITICAL FAILURE:", error, errorInfo);
   }
 
-  // FIX: EMERGENCY RESET FUNCTION
   handleReset = () => {
-    localStorage.clear(); // Clear bad data
-    sessionStorage.clear(); // Clear boot state
-    window.location.href = "/"; // Hard reload to root
+    localStorage.clear(); 
+    sessionStorage.clear(); 
+    window.location.reload(); 
   };
 
   render() {
@@ -55,13 +50,11 @@ class ErrorBoundary extends React.Component {
             <p className="text-slate-400 text-sm mb-6 font-mono">
               Critical runtime exception detected in Command Node.
             </p>
-
             <div className="bg-black/50 p-4 rounded-xl text-left mb-6 border border-red-900/50 overflow-hidden">
               <p className="text-[10px] font-mono text-red-400 break-words">
                 {this.state.error?.toString() || "Unknown Error"}
               </p>
             </div>
-
             <button
               onClick={this.handleReset}
               className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -79,13 +72,13 @@ class ErrorBoundary extends React.Component {
 // --- 🚀 APP ENTRY POINT ---
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* 1. Language Provider (Global State) */}
     <I18nProvider>
-      {/* 2. Error Boundary (Crash Protection) */}
       <ErrorBoundary>
-        {/* 3. Main App Logic */}
-        <App />
+        {/* ✅ HashRouter is used here to ensure routing works inside the Android APK */}
+        <HashRouter>
+          <App />
+        </HashRouter>
       </ErrorBoundary>
     </I18nProvider>
   </React.StrictMode>,
-)
+);

@@ -1,19 +1,45 @@
 import React, { useState, useEffect } from "react";
 import { 
   Globe, Smartphone, Trash2, RefreshCw, 
-  Battery, Shield, Info, ChevronRight, Moon, 
-  Volume2, Power, User, Save, Activity, CheckCircle, HeartPulse
+  Shield, ChevronRight, Moon, Sun,
+  User, Save, Activity, CheckCircle, ArrowLeft 
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+// ✅ NEW: Capacitor Native Plugins
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { useI18n, languages } from "../i18n";
-import { Device } from '@capacitor/device';
 
 const SettingsView = () => {
+  const navigate = useNavigate();
   const { t, lang, setLang } = useI18n();
-  const [batteryInfo, setBatteryInfo] = useState({ level: 0.85, isCharging: true });
-  const [storageUsed, setStorageUsed] = useState("124 MB");
+  
+  // --- THEME STATE ---
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const [saved, setSaved] = useState(false);
 
-  // --- 1. PROFILE STATE ---
+  // --- 1. THEME LOGIC (Native Status Bar Sync) ---
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const applyTheme = async () => {
+        if (theme === "dark") {
+            root.classList.add("dark");
+            try { await StatusBar.setStyle({ style: Style.Dark }); } catch(e){}
+        } else {
+            root.classList.remove("dark");
+            try { await StatusBar.setStyle({ style: Style.Light }); } catch(e){}
+        }
+        localStorage.setItem("theme", theme);
+    };
+    applyTheme();
+  }, [theme]);
+
+  const toggleTheme = async () => {
+    await Haptics.impact({ style: ImpactStyle.Light }); // 📳 Haptic
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
+  // --- 2. PROFILE STATE ---
   const [profile, setProfile] = useState(() => {
     const savedProfile = localStorage.getItem("drishti_profile");
     return savedProfile ? JSON.parse(savedProfile) : { name: "", phone: "", blood: "", medical: "" };
@@ -21,177 +47,190 @@ const SettingsView = () => {
 
   const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     localStorage.setItem("drishti_profile", JSON.stringify(profile));
     setSaved(true);
-    if (navigator.vibrate) navigator.vibrate(50);
+    await Haptics.notification({ type: NotificationType.Success }); // 📳 Success Vibe
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // --- 2. DEVICE INFO ---
-  useEffect(() => {
-    const getInfo = async () => {
-      try {
-        const info = await Device.getBatteryInfo();
-        setBatteryInfo(info);
-      } catch (e) {
-        setBatteryInfo({ level: 0.92, isCharging: false }); // Fallback
-      }
-    };
-    getInfo();
-  }, []);
-
   // --- 3. SYSTEM ACTIONS ---
-  const handleResetBoot = () => {
+  const handleResetBoot = async () => {
+    await Haptics.impact({ style: ImpactStyle.Medium });
     if (window.confirm("Re-run system boot sequence?")) {
       sessionStorage.removeItem("routeai_booted");
-      window.location.reload();
+      window.location.href = "/";
     }
   };
 
-  const handleClearCache = () => {
-    localStorage.clear();
-    setStorageUsed("0 MB");
-    alert("System Cache Purged.");
+  const handleClearCache = async () => {
+    await Haptics.impact({ style: ImpactStyle.Medium });
+    if(window.confirm("Clear all local maps and user data?")) {
+        localStorage.clear();
+        window.location.reload();
+    }
+  };
+
+  const handleBack = async () => {
+      await Haptics.impact({ style: ImpactStyle.Light });
+      navigate(-1);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 font-sans animate-in slide-in-from-right duration-300">
+    // ✅ SAFE AREAS: pt-safe-top prevents Notch overlap
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 pb-safe-bottom pt-safe-top font-sans transition-colors duration-500 selection:bg-transparent">
       
       {/* HEADER */}
-      <div className="bg-white px-6 py-6 border-b border-slate-200 sticky top-0 z-10">
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">Settings</h1>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">System Configuration</p>
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-6 py-4 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center gap-4 transition-colors duration-500">
+        <button onClick={handleBack} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full active:bg-slate-200 dark:active:bg-slate-700 transition-colors active:scale-90">
+            <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
+        </button>
+        <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{t("settings.header")}</h1>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t("settings.subHeader")}</p>
+        </div>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-6 max-w-lg mx-auto pb-24">
 
         {/* --- LANGUAGE SECTION --- */}
         <section>
-          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Localization</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <h2 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-2">{t("settings.lang")}</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors duration-500">
             {languages.map((l) => (
               <button
                 key={l.code}
-                onClick={() => setLang(l.code)}
-                className={`w-full flex items-center justify-between p-4 border-b border-slate-100 last:border-0 transition-colors ${
-                  lang === l.code ? "bg-blue-50" : "hover:bg-slate-50"
+                onClick={async () => {
+                    await Haptics.impact({ style: ImpactStyle.Light });
+                    setLang(l.code);
+                }}
+                className={`w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors active:bg-slate-50 dark:active:bg-slate-800 ${
+                  lang === l.code ? "bg-blue-50 dark:bg-blue-900/20" : ""
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${lang === l.code ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
+                  <div className={`p-2 rounded-full ${lang === l.code ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>
                     <Globe size={18} />
                   </div>
-                  <span className={`font-bold ${lang === l.code ? "text-blue-700" : "text-slate-700"}`}>
-                    {l.label}
+                  <span className={`block font-bold text-sm ${lang === l.code ? "text-blue-600 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>
+                        {l.label}
                   </span>
                 </div>
-                {lang === l.code && <div className="w-2 h-2 bg-blue-600 rounded-full"></div>}
+                {lang === l.code && <div className="w-2 h-2 bg-blue-600 dark:bg-blue-500 rounded-full"></div>}
               </button>
             ))}
           </div>
         </section>
 
-        {/* --- PROFILE SECTION (NEW) --- */}
+        {/* --- THEME TOGGLE --- */}
         <section>
-          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">User Profile</h2>
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-             {/* Name */}
-             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
-                <User size={16} className="text-slate-400" />
-                <input name="name" value={profile.name} onChange={handleProfileChange} placeholder="Enter Full Name" className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
-             </div>
-             
-             <div className="grid grid-cols-2 gap-3">
-                {/* Blood */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
-                    <Activity size={16} className="text-red-400" />
-                    <input name="blood" value={profile.blood} onChange={handleProfileChange} placeholder="Blood Grp" className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
-                </div>
-                {/* Phone */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3">
-                    <Smartphone size={16} className="text-slate-400" />
-                    <input name="phone" value={profile.phone} onChange={handleProfileChange} placeholder="Phone No." className="bg-transparent w-full text-sm font-bold focus:outline-none"/>
-                </div>
-             </div>
-
-             {/* Medical */}
-             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex gap-3">
-                <HeartPulse size={16} className="text-purple-400 mt-1" />
-                <textarea name="medical" value={profile.medical} onChange={handleProfileChange} placeholder="Medical Notes (Allergies etc.)" className="bg-transparent w-full text-sm font-medium focus:outline-none resize-none h-16"/>
-             </div>
-
-             <button onClick={handleSaveProfile} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all ${saved ? "bg-emerald-600 text-white" : "bg-slate-900 text-white"}`}>
-                {saved ? <CheckCircle size={16} /> : <Save size={16} />}
-                {saved ? "Saved!" : "Save Profile"}
-             </button>
-          </div>
+           <h2 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-2">Appearance</h2>
+           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between shadow-sm transition-colors duration-500">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
+                    {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+                 </div>
+                 <span className="font-medium text-sm text-slate-700 dark:text-slate-300">
+                    {theme === 'dark' ? "Dark Mode" : "Light Mode"}
+                 </span>
+              </div>
+              
+              {/* THE SWITCH */}
+              <button 
+                onClick={toggleTheme}
+                className={`w-14 h-8 rounded-full p-1 flex items-center transition-all duration-300 active:scale-95 ${
+                    theme === 'dark' ? "bg-purple-600 justify-end" : "bg-slate-300 justify-start"
+                }`}
+              >
+                 <div className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center">
+                    {theme === 'dark' ? <Moon size={12} className="text-purple-600"/> : <Sun size={12} className="text-amber-500"/>}
+                 </div>
+              </button>
+           </div>
         </section>
 
-        {/* --- DEVICE DIAGNOSTICS --- */}
+        {/* --- PROFILE SECTION --- */}
         <section>
-          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Device Health</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 grid grid-cols-2 gap-4">
-            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                <div className="flex items-center gap-2 mb-2 text-emerald-600">
-                    <Battery size={18} />
-                    <span className="text-[10px] font-bold uppercase">Power</span>
+          <h2 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-2">{t("settings.profileTitle")}</h2>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4 transition-colors duration-500">
+              {/* Name */}
+              <div className="bg-slate-50 dark:bg-black/30 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 focus-within:border-blue-500 transition-colors">
+                <User size={16} className="text-slate-400 dark:text-slate-500" />
+                <input 
+                    name="name" 
+                    value={profile.name} 
+                    onChange={handleProfileChange} 
+                    placeholder={t("settings.namePlaceholder")} 
+                    className="bg-transparent w-full text-sm font-bold focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 dark:bg-black/30 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 focus-within:border-red-500 transition-colors">
+                    <Activity size={16} className="text-red-500" />
+                    <input 
+                        name="blood" 
+                        value={profile.blood} 
+                        onChange={handleProfileChange} 
+                        placeholder={t("settings.bloodLabel")} 
+                        className="bg-transparent w-full text-sm font-bold focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                    />
                 </div>
-                <p className="text-xl font-black text-emerald-800">{(batteryInfo.level * 100).toFixed(0)}%</p>
-                <p className="text-[10px] text-emerald-600">{batteryInfo.isCharging ? "Charging" : "Discharging"}</p>
-            </div>
-            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                <div className="flex items-center gap-2 mb-2 text-blue-600">
-                    <Smartphone size={18} />
-                    <span className="text-[10px] font-bold uppercase">Storage</span>
+                <div className="bg-slate-50 dark:bg-black/30 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 focus-within:border-blue-500 transition-colors">
+                    <Smartphone size={16} className="text-slate-400 dark:text-slate-500" />
+                    <input 
+                        name="phone" 
+                        value={profile.phone} 
+                        onChange={handleProfileChange} 
+                        placeholder={t("settings.phoneLabel")} 
+                        className="bg-transparent w-full text-sm font-bold focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                    />
                 </div>
-                <p className="text-xl font-black text-blue-800">{storageUsed}</p>
-                <p className="text-[10px] text-blue-600">Map Cache</p>
-            </div>
+              </div>
+
+              <button 
+                onClick={handleSaveProfile} 
+                className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md ${saved ? "bg-emerald-600 text-white" : "bg-blue-600 text-white hover:bg-blue-500"}`}
+              >
+                {saved ? <CheckCircle size={18} /> : <Save size={18} />}
+                {saved ? t("settings.saved") : t("settings.save")}
+              </button>
           </div>
         </section>
 
         {/* --- SYSTEM ACTIONS --- */}
         <section>
-          <h2 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-2">Maintenance</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <h2 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-2">{t("settings.maintenance")}</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors duration-500">
             
-            <button onClick={handleClearCache} className="w-full flex items-center justify-between p-4 border-b border-slate-100 active:bg-slate-50">
+            <button onClick={handleClearCache} className="w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><Trash2 size={18} /></div>
-                <span className="font-medium text-sm text-slate-700">Clear Local Data</span>
+                <div className="p-2 bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-500 rounded-lg"><Trash2 size={18} /></div>
+                <span className="font-medium text-sm text-slate-700 dark:text-slate-300">{t("settings.clearCache")}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-300" />
+              <ChevronRight size={16} className="text-slate-300 dark:text-slate-600" />
             </button>
 
-            <button onClick={handleResetBoot} className="w-full flex items-center justify-between p-4 border-b border-slate-100 active:bg-slate-50">
+            <button onClick={handleResetBoot} className="w-full flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><RefreshCw size={18} /></div>
-                <span className="font-medium text-sm text-slate-700">Replay Boot Sequence</span>
+                <div className="p-2 bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-500 rounded-lg"><RefreshCw size={18} /></div>
+                <span className="font-medium text-sm text-slate-700 dark:text-slate-300">{t("settings.resetBoot")}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-300" />
+              <ChevronRight size={16} className="text-slate-300 dark:text-slate-600" />
             </button>
-
-            <div className="p-4 flex items-center justify-between bg-slate-50">
-               <div className="flex items-center gap-3">
-                 <div className="p-2 bg-slate-200 text-slate-600 rounded-lg"><Moon size={18} /></div>
-                 <span className="font-medium text-sm text-slate-700">Dark Mode</span>
-               </div>
-               <span className="text-xs font-bold text-slate-400">AUTO</span>
-            </div>
 
           </div>
         </section>
 
         {/* --- ABOUT --- */}
         <div className="text-center pt-6 pb-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-200 rounded-full mb-2">
-                <Shield size={12} className="text-slate-500" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Version 1.0.4 (Beta)</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-full mb-3">
+                <Shield size={12} className="text-blue-600 dark:text-blue-500" />
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Version 2.4.0 (RC-1)</span>
             </div>
-            <p className="text-[10px] text-slate-400">
-                Built for DrishtiNE Hackathon<br/>
-                Team Matrix • 2026
+            <p className="text-[10px] text-slate-500 dark:text-slate-600">
+                {t("settings.about")}<br/>
+                {t("settings.team")}
             </p>
         </div>
 
