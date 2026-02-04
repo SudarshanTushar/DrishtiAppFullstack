@@ -1,121 +1,120 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import json
+import sys
 from datetime import datetime
 
-# --- 1. IMPORT NEW XGBOOST/GNN MODULE ---
-# Hum 'xgboost' folder ke andar 'ne_predictor.py' se function bula rahe hain
-try:
-    from xgboost.ne_predictor import predict_ne_risk
-    print("✅ XGBoost/GNN Module Imported Successfully")
-except ImportError as e:
-    print(f"⚠️ Warning: Could not import NE Predictor. Check folder structure. Error: {e}")
-    # Dummy function to prevent crash if import fails
-    def predict_ne_risk(data):
-        return {"error": "Model module not found", "risk_level": 0}
+# --- 🔧 CRITICAL PATH FIX ---
+# Current folder ko Python Path mein zabardasti add karte hain
+# Taaki Gunicorn 'ai_engine' folder ko dhoond sake
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# --- 2. APP SETUP ---
 app = Flask(__name__)
-CORS(app)  # React Frontend ko allow karne ke liye
+CORS(app)
 
-# --- 3. DATABASE SETUP (Placeholder based on requirements.txt) ---
-# Agar aapko DB connect karna hai toh yahan credentials dalein
-# from flask_sqlalchemy import SQLAlchemy
-# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///disaster.db')
-# db = SQLAlchemy(app)
+# --- 🧠 IMPORT AI ENGINE (With Error Capture) ---
+import_error = None
+try:
+    # Humne folder rename kiya tha 'xgboost' -> 'ai_engine'
+    from ai_engine.ne_predictor import predict_ne_risk, find_safest_route
+    print("✅ AI Engine Loaded Successfully")
+except Exception as e:
+    # Agar error aaya, toh usse save kar lo
+    import_error = str(e)
+    print(f"❌ FATAL IMPORT ERROR: {e}")
 
-# --- ROUTES ---
+    # Fallback functions (Dummy) taaki server crash na ho
+    def find_safest_route(sl, slg, el, elg):
+        return {"error": f"Server Import Failed: {import_error}"}
 
+    def predict_ne_risk(data):
+        return {"error": f"Server Import Failed: {import_error}"}
+
+# ==========================================
+# 🏠 ROUTE 1: HOME (Health Check)
+# ==========================================
 @app.route('/')
 def home():
+    """
+    Browser mein check karne ke liye.
+    Agar AI fail hai, toh yahan reason dikhega.
+    """
     return jsonify({
         "status": "Online",
-        "system": "Disaster Management Backend (XGBoost Enabled)",
+        "system": "Drishti Backend (Life Saviour Mode)",
+        "ai_engine_status": "✅ Active" if not import_error else f"❌ Inactive (Error: {import_error})",
         "timestamp": datetime.now().isoformat()
     })
 
 # ==========================================
-# 🚀 ROUTE 1: NEW XGBOOST / GNN PREDICTION
+# 🛡️ ROUTE 2: LIFE SAVIOUR ROUTING
 # ==========================================
-@app.route('/api/predict-ne', methods=['POST'])
-def predict_north_east():
-    """
-    Ye route North East region ke liye special XGBoost/GNN model use karta hai.
-    Input Example: { "rainfall": 120, "soil_moisture": 45, "river_level": 8.5 }
-    """
+@app.route('/api/v1/core/analyze-route', methods=['POST'])
+def analyze_route_risk():
     try:
         data = request.json
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        start_lat = data.get('start_lat')
+        start_lng = data.get('start_lng')
+        end_lat = data.get('end_lat')
+        end_lng = data.get('end_lng')
 
-        print(f"Incoming NE Data: {data}")
+        if not all([start_lat, start_lng, end_lat, end_lng]):
+            return jsonify({"error": "Coordinates missing"}), 400
 
-        # Call the function from ne_predictor.py
-        result = predict_ne_risk(data)
+        # 🔥 Call AI Brain
+        result = find_safest_route(start_lat, start_lng, end_lat, end_lng)
+        
+        # Check if fallback error occurred
+        if "error" in result:
+            return jsonify(result), 500
 
-        # Response Formatting
-        response = {
+        # Extract Best Route
+        best_route = result.get('best_route', {})
+        
+        return jsonify({
             "status": "success",
-            "model_used": "ManualSTGNN + XGBoost",
-            "timestamp": datetime.now().isoformat(),
-            "data": result
-        }
-        return jsonify(response)
+            "route_analysis": {
+                "route_id": best_route.get('id'),
+                "name": best_route.get('name'),
+                "risk_level": best_route.get('risk_level'),
+                "risk_score": best_route.get('risk_score'),
+                "coordinates": best_route.get('coordinates'),
+                "distance_km": best_route.get('distance_km'),
+                "eta": best_route.get('eta'),
+                "weather_data": best_route.get('weather_data'),
+                "recommendation": best_route.get('recommendation')
+            },
+            "timestamp": datetime.now().isoformat()
+        })
 
     except Exception as e:
-        print(f"❌ Error in NE Prediction: {e}")
+        print(f"❌ Routing API Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
-# 🚀 ROUTE 2: GENERAL DISASTER ALERTS (Previous Feature)
+# 🚀 ROUTE 3: POINT PREDICTION (Manual)
+# ==========================================
+@app.route('/api/predict-ne', methods=['POST'])
+def predict_north_east():
+    try:
+        data = request.json
+        if not data: return jsonify({"error": "No data"}), 400
+        result = predict_ne_risk(data)
+        return jsonify({"status": "success", "data": result})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==========================================
+# ⚠️ ROUTE 4: ALERTS
 # ==========================================
 @app.route('/api/alert', methods=['POST'])
 def send_alert():
-    """
-    Ye route general alerts handle karta hai (SMS/Notification logic yahan aayega).
-    """
     try:
         data = request.json
-        location = data.get('location', 'Unknown')
-        alert_type = data.get('type', 'General')
-        
-        # Yahan aap SMS/Email logic add kar sakte hain
-        print(f"⚠️ ALERT RECEIVED: {alert_type} at {location}")
-
-        return jsonify({
-            "status": "sent",
-            "message": f"Alert for {alert_type} broadcasted to {location}."
-        })
+        print(f"⚠️ ALERT: {data}")
+        return jsonify({"status": "sent", "message": "Alert Broadcasted"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ==========================================
-# 🚀 ROUTE 3: REPORT GENERATION (FPDF Feature)
-# ==========================================
-@app.route('/api/generate-report', methods=['GET'])
-def generate_report():
-    """
-    PDF Report generate karne ka placeholder (FPDF2 installed hai).
-    """
-    try:
-        # Simple Logic to demonstrate FPDF usage
-        from fpdf import FPDF
-        
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt="Disaster Management Report", ln=1, align='C')
-        pdf.cell(200, 10, txt=f"Generated: {datetime.now()}", ln=2, align='C')
-        pdf.cell(200, 10, txt="Status: All Systems Operational", ln=3, align='L')
-        
-        report_path = "report.pdf"
-        pdf.output(report_path)
-        
-        return f"Report Generated: {report_path} (Logic Ready)"
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
 if __name__ == '__main__':
-    # '0.0.0.0' allows access from other devices (Mobile App Testing)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)

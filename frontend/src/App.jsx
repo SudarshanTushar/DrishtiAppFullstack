@@ -17,6 +17,7 @@ import SOSView from "./pages/SOSView";
 import NetworkView from "./pages/NetworkView";
 import AdminPanel from "./pages/AdminPanel";
 import SettingsView from "./pages/SettingsView";
+import PredictionView from "./pages/PredictionView"; // ✅ ADDED: New Prediction Page
 
 // --- LOGIC ---
 import { useI18n, languages } from "./i18n.jsx";
@@ -222,7 +223,8 @@ const App = () => {
           <Route path="/mesh" element={<NetworkView />} />
           <Route path="/settings" element={<SettingsView />} />
           <Route path="/login" element={<Login setAuth={setIsAuthenticated} />} />
-          
+          <Route path="/predict" element={<PredictionView />} /> {/* ✅ ADDED: Route for Prediction */}
+
           <Route 
             path="/admin" 
             element={

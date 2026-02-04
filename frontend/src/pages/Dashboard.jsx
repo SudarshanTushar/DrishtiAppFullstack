@@ -10,8 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { useI18n } from "../i18n";
-
-const API_URL = "https://157.245.111.124.nip.io";
+import { API_BASE_URL } from "../config"; // ✅ Added Config Import
 
 const DashboardView = () => {
   const { t } = useI18n();
@@ -39,7 +38,8 @@ const DashboardView = () => {
   // --- 2. DATA FETCHING ---
   const fetchRisk = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/iot/feed`);
+      // ✅ Now using the live API URL from config
+      const res = await fetch(`${API_BASE_URL}/api/v1/iot/feed`);
       const data = await res.json();
       setStats(data);
     } catch (e) {
@@ -162,11 +162,13 @@ const DashboardView = () => {
               title={t("dash.offlineComms")}
               desc={t("dash.p2p")}
             />
+            
+            {/* ✅ UPDATED BUTTON: NOW LINKS TO PREDICTOR */}
             <BigButton 
-              onClick={() => handleNav("/login")}
-              icon={<ShieldAlert size={28} className="text-amber-500" />}
-              title={t("dash.adminPanel")}
-              desc="Restricted"
+              onClick={() => handleNav("/predict")}
+              icon={<Activity size={28} className="text-purple-500" />}
+              title="AI Predictor"
+              desc="Check Risk"
             />
          </div>
 
