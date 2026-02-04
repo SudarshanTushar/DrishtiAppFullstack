@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor-community/bluetooth-le": "^8.0.3",
     "@capacitor/android": "5.7.0",
     "@capacitor/app": "^5.0.8",
     "@capacitor/core": "5.7.0",

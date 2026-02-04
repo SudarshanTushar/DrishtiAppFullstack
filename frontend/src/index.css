@@ -4,26 +4,21 @@
 
 :root {
   /* 1. TYPOGRAPHY & THEME ROOT */
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', 'JetBrains Mono', 'Roboto Mono', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  /* 2. COLOR SCHEME */
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a; /* Slate 950 - Tactical Base */
+  /* 2. COLOR SCHEME - Tactical Dark Mode */
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.9);
+  background-color: #020617; /* Slate 950 (Darker Base) */
 
   /* 3. TACTICAL PALETTE VARIABLES */
   --gov-blue: #0f172a;
   --gov-accent: #3b82f6;
   --danger: #ef4444;
   --safe: #10b981;
-
-  /* 4. RENDERING OPTIMIZATIONS */
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --mesh-active: #059669; /* Emerald 600 */
 }
 
 body {
@@ -31,14 +26,42 @@ body {
   width: 100%;
   height: 100%;
   overflow-x: hidden;
+  background-color: #020617;
   
   /* Mobile Optimizations */
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none; /* Prevents "bounce" effect on mobile */
+  overscroll-behavior-y: none; /* Prevents "pull-to-refresh" on web apps */
+  user-select: none; /* App-like feel, prevents accidental text selection */
+}
+
+/* --- 🖱️ CUSTOM SELECTION (Tactical Green) --- */
+::selection {
+  background: rgba(16, 185, 129, 0.3); /* Emerald tint */
+  color: #ffffff;
+}
+
+/* --- 📱 SAFE AREA UTILITIES (REQUIRED FOR NOTCH) --- */
+/* These are used in your NetworkView.jsx */
+.pt-safe-top {
+  padding-top: env(safe-area-inset-top, 20px);
+}
+
+.pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* --- ⌨️ INPUT AUTOFILL FIX (Dark Mode) --- */
+/* Prevents inputs from turning white when Android/Chrome autofills */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #000 inset !important;
+    -webkit-text-fill-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
 }
 
 /* --- 🗺️ MAP ENGINE FIXES --- */
-/* Ensures maps don't show white flashes while loading */
 .mapboxgl-map, .leaflet-container {
   width: 100%;
   height: 100%;
@@ -46,65 +69,63 @@ body {
   z-index: 0;
 }
 
-/* --- 🖱️ CUSTOM SCROLLBAR (Tech/Sci-Fi Feel) --- */
+/* --- 🖱️ CUSTOM SCROLLBAR (Slim & Tactical) --- */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px; /* Thinner for mobile */
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b; /* Slate 800 */
+  background: #020617; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569; /* Slate 600 */
-  border-radius: 3px;
+  background: #334155; /* Slate 700 */
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b; /* Slate 500 */
+  background: #475569; /* Slate 600 */
 }
 
-/* --- 📱 UTILITY CLASSES --- */
-/* Safe Area Padding for iPhone Notch/Home Bar */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 20px);
-}
+/* --- ⚡ ANIMATIONS --- */
 
-/* --- ⚡ TACTICAL ANIMATIONS --- */
+/* 1. Radar Scan Effect */
 @keyframes scanline {
-  0% { 
-    transform: translateY(-100%); 
-  }
-  100% { 
-    transform: translateY(100%); 
-  }
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
 }
 
-/* The Scanline Overlay Effect */
 .animate-scanline {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 100%;
-  background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.1), transparent);
-  animation: scanline 3s linear infinite;
-  pointer-events: none; /* Allows clicking through the animation */
+  background: linear-gradient(to bottom, transparent, rgba(16, 185, 129, 0.1), transparent);
+  animation: scanline 4s linear infinite;
+  pointer-events: none;
   z-index: 10;
 }
 
-/* --- 📊 RISK VISUALIZATIONS (For SVG Maps) --- */
-.risk-high { 
-  stroke: #ef4444; 
-  stroke-width: 3; 
-  fill: rgba(239, 68, 68, 0.2);
-  filter: drop-shadow(0 0 4px #ef4444); 
+/* 2. Critical Alert Pulse */
+@keyframes critical-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
 }
-.risk-med { 
-  stroke: #f59e0b; 
-  stroke-width: 2; 
-  fill: rgba(245, 158, 11, 0.2);
+
+.animate-critical {
+  animation: critical-pulse 2s infinite;
 }
-.risk-low { 
-  stroke: #10b981; 
-  stroke-width: 2; 
-  fill: rgba(16, 185, 129, 0.2);
+
+/* --- 📊 UTILITY CLASSES --- */
+
+/* Glassmorphism for floating headers */
+.glass-panel {
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Allow text selection only in logs */
+.select-text {
+  user-select: text;
 }

@@ -1,239 +1,214 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
-  Radio, Wifi, Share2, Database, Send, Smartphone, 
-  Activity, Check, Bluetooth, RefreshCw, Download 
+  Radio, WifiOff, Bluetooth, Send, Activity, 
+  RefreshCw, ShieldAlert, Smartphone, Users
 } from "lucide-react";
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
-import { BleClient } from '@capacitor-community/bluetooth-le';
+import { registerPlugin } from '@capacitor/core';
+import { Haptics, NotificationType } from '@capacitor/haptics';
+
+// 🔌 LINK TO YOUR NATIVE JAVA PLUGIN
+const MeshNetwork = registerPlugin('MeshNetwork');
 
 const NetworkView = () => {
-  const [isScanning, setIsScanning] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState("");
   const [logs, setLogs] = useState([]);
+  const [inputText, setInputText] = useState("");
+  const [peers, setPeers] = useState([]); 
+  const [status, setStatus] = useState("IDLE"); // IDLE, SCANNING, ACTIVE, ERROR
   const logsEndRef = useRef(null);
-  const [devices, setDevices] = useState([]);
-  const [packet, setPacket] = useState(null);
 
-  // --- LOGGING ---
-  const addLog = (msg) => {
-    const time = new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute:'2-digit' });
-    setLogs(prev => [`[${time}] ${msg}`, ...prev]);
-  };
-
-  // --- 🔵 1. REAL BLUETOOTH SCANNING ---
-  const startScan = async () => {
-    setIsScanning(true);
-    setDevices([]);
-    addLog("Initializing BLE Module...");
-    await Haptics.impact({ style: ImpactStyle.Medium });
-
-    try {
-      await BleClient.initialize();
-      addLog("Scanning for Mesh Nodes (BLE)...");
-      
-      await BleClient.requestLEScan(
-        { allowDuplicates: false },
-        (result) => {
-          if (result.device.name) {
-            setDevices((prev) => {
-               if (prev.find(d => d.deviceId === result.device.deviceId)) return prev;
-               return [...prev, {
-                 id: result.device.deviceId,
-                 label: result.device.name,
-                 rssi: result.rssi,
-                 x: 20 + Math.random() * 60,
-                 y: 20 + Math.random() * 60,
-               }];
-            });
-            addLog(`Found Node: ${result.device.name} (${result.rssi} dBm)`);
-          }
-        }
-      );
-
-      setTimeout(async () => {
-        await BleClient.stopLEScan();
-        setIsScanning(false);
-        addLog("Scan Complete. Mesh Topology Built.");
-        await Haptics.notification({ type: NotificationType.Success });
-      }, 5000);
-
-    } catch (error) {
-      addLog("⚠️ BLE Permission Denied. Switching to Sim Mode.");
-      setIsScanning(false);
-      // Fallback Devices
-      setDevices([
-        { id: "P1", label: "OnePlus Nord", x: 20, y: 50, rssi: -55 },
-        { id: "P2", label: "Pixel 6a", x: 80, y: 40, rssi: -62 }
-      ]);
-    }
-  };
-
-  // --- 2. SEND LOGIC (Phone A) ---
-  const handleSend = async () => {
-    if (!inputText.trim()) return;
-    await Haptics.impact({ style: ImpactStyle.Medium });
-
-    const newMsg = { id: Date.now(), text: inputText, sender: "ME", status: "sending" };
-    setMessages(prev => [...prev, newMsg]);
-    setInputText("");
-
-    if (devices.length === 0) {
-        addLog("No peers connected. Buffering...");
-        return;
-    }
-
-    // Visual Hop
-    const target = devices[0]; 
-    runHop({ x: 50, y: 90 }, { x: target.x, y: target.y }, async () => {
-        addLog(`[ACK] Handshake with ${target.label}`);
-        await Haptics.notification({ type: NotificationType.Success });
-        setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "sent" } : m));
-        addLog(`[TX] Payload sent to ${target.label}`);
-    });
-  };
-
-  // --- 3. RECEIVE LOGIC (Phone B - The Trick) ---
-  // Hidden Feature: Tap the "MESH_NET" title to simulate receiving a message
-  const triggerFakeReceive = async () => {
-    await Haptics.notification({ type: NotificationType.Warning });
-    addLog("[RX] New Packet Detected...");
-    
-    setTimeout(() => {
-        setMessages(prev => [...prev, {
-            id: Date.now(),
-            text: "Medical supplies needed at Sector 7!",
-            sender: "Ravi (Sec-4)",
-            status: "received"
-        }]);
-        addLog("[DEC] Message Decrypted: 'Medical supplies...'");
-        Haptics.vibrate({ duration: 500 });
-    }, 1000);
-  };
-
-  // Animation Engine
-  const runHop = (from, to, onComplete) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += 5;
-        setPacket({ 
-            x: from.x + (to.x - from.x) * (progress / 100),
-            y: from.y + (to.y - from.y) * (progress / 100)
+  // --- 1. SETUP LISTENERS ---
+  useEffect(() => {
+    // When a device connects via Bluetooth/Nearby
+    const peerListener = MeshNetwork.addListener('onPeerConnected', (data) => {
+        const nodeId = data.id.substring(0, 5);
+        addLog(`[LINK] 🔗 Node Connected: ${nodeId}`, "system");
+        setPeers(prev => {
+            if (prev.includes(data.id)) return prev;
+            return [...prev, data.id];
         });
-        if (progress >= 100) {
-            clearInterval(interval);
-            setPacket(null);
-            onComplete();
-        }
-    }, 20);
+        Haptics.notification({ type: NotificationType.Success });
+    });
+
+    // When a message is received
+    const msgListener = MeshNetwork.addListener('onMessageReceived', (data) => {
+        const senderId = data.sender.substring(0,4);
+        addLog(`[RX] ${senderId}: ${data.message}`, "rx");
+        Haptics.vibrate();
+    });
+
+    return () => {
+        peerListener.remove();
+        msgListener.remove();
+    };
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  // Helper for logs with types (tx, rx, system, error)
+  const addLog = (msg, type = "system") => {
+    const time = new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute:'2-digit' });
+    setLogs(prev => [...prev, { time, msg, type }]);
+  };
+
+  // --- 2. ACTIONS ---
+
+  const activateMesh = async () => {
+    setStatus("SCANNING");
+    addLog("Initializing Offline Mesh Kernel...", "system");
+    try {
+        await MeshNetwork.startDiscovery();
+        setStatus("ACTIVE");
+        addLog("✅ Bluetooth Radio Active. Scanning...", "success");
+    } catch (e) {
+        setStatus("ERROR");
+        addLog("❌ Error: " + e.message, "error");
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!inputText.trim()) return;
+    
+    // UI Update immediately
+    addLog(`ME: ${inputText}`, "tx");
+    
+    try {
+        await MeshNetwork.broadcastMessage({ message: inputText });
+        setInputText("");
+    } catch (e) {
+        addLog("❌ Send Failed: " + e.message, "error");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-emerald-500 font-mono flex flex-col pt-safe-top pb-safe-bottom transition-colors duration-500">
+    <div className="min-h-screen bg-slate-950 text-emerald-500 font-mono flex flex-col pt-safe-top pb-safe-bottom">
       
-      {/* HEADER */}
-      <header className="p-4 border-b border-slate-200 dark:border-emerald-900/50 flex justify-between items-center bg-white dark:bg-slate-900">
-        <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg border ${isScanning ? "bg-emerald-100 dark:bg-emerald-900/20 border-emerald-500" : "bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700"}`}>
-                <Bluetooth size={20} className={isScanning ? "text-emerald-600 dark:text-emerald-400 animate-pulse" : "text-slate-500"} />
+      {/* --- HEADER --- */}
+      <div className="p-4 bg-slate-900 border-b border-emerald-900/50 shadow-lg z-10">
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+                {/* Status Icon */}
+                <div className={`p-2 rounded-lg border ${status === "ACTIVE" ? "bg-emerald-500/10 border-emerald-500" : "bg-slate-800 border-slate-700"}`}>
+                    {status === "ACTIVE" ? <Bluetooth className="text-blue-400 animate-pulse" size={20} /> : <Radio className="text-slate-500" size={20} />}
+                </div>
+                <div>
+                    <h1 className="text-lg font-black tracking-widest text-emerald-400 leading-none">MATRIX MESH</h1>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className={`w-2 h-2 rounded-full ${status === "ACTIVE" ? "bg-emerald-500 animate-ping" : "bg-slate-600"}`}></span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {status === "ACTIVE" ? "OFFLINE LINK SECURE" : "RADIO SILENCE"}
+                        </span>
+                    </div>
+                </div>
             </div>
-            {/* 🤫 SECRET TRIGGER: Tap "MESH_NET" to Receive Message */}
-            <div onClick={triggerFakeReceive} className="active:opacity-50">
-                <h1 className="text-xl font-black tracking-widest text-slate-900 dark:text-emerald-400">MESH_NET</h1>
-                <p className="text-[10px] font-bold uppercase text-slate-500">
-                    {isScanning ? "Scanning Bands..." : "Ready to Link"}
-                </p>
+            
+            {/* Peer Counter */}
+            <div className="flex flex-col items-end">
+                <div className="flex items-center gap-1 text-emerald-400">
+                    <Users size={14} />
+                    <span className="text-xl font-bold">{peers.length}</span>
+                </div>
+                <span className="text-[9px] text-slate-500 uppercase">Nodes</span>
             </div>
         </div>
-        <button 
-            onClick={startScan}
-            disabled={isScanning}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[10px] font-bold shadow-lg active:scale-95 transition-all"
-        >
-            <RefreshCw size={12} className={isScanning ? "animate-spin" : ""}/>
-            {isScanning ? "SCANNING" : "SCAN NODES"}
-        </button>
-      </header>
 
-      {/* GRAPH AREA */}
-      <div className="flex-1 relative bg-slate-100 dark:bg-black/40 overflow-hidden">
-         {isScanning && <div className="absolute inset-0 bg-emerald-500/5 animate-pulse"></div>}
-         
-         {/* Packet Animation */}
-         {packet && (
-             <div 
-                className="absolute w-3 h-3 bg-blue-500 border border-white rounded-full shadow-[0_0_15px_#3b82f6] z-30 transition-none"
-                style={{ left: `${packet.x}%`, top: `${packet.y}%`, transform: 'translate(-50%, -50%)' }}
-             />
-         )}
-
-         {/* ME NODE */}
-         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center z-20">
-             <div className="w-12 h-12 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center shadow-lg">
-                 <Smartphone size={24} className="text-white"/>
-             </div>
-             <span className="mt-1 text-[9px] font-bold bg-white dark:bg-black px-2 rounded border">YOU</span>
-         </div>
-
-         {/* DEVICES */}
-         {devices.map((node, i) => (
-             <div key={i} className="absolute flex flex-col items-center transform -translate-x-1/2 -translate-y-1/2 animate-in zoom-in" style={{ left: `${node.x}%`, top: `${node.y}%` }}>
-                 <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 border-emerald-500 bg-slate-900 shadow-lg z-10">
-                     <Share2 size={18} className="text-emerald-400"/>
-                 </div>
-                 <div className="mt-1 flex flex-col items-center">
-                    <span className="text-[9px] font-bold bg-black/80 text-white px-2 py-0.5 rounded border border-emerald-500/50">
-                        {node.label}
-                    </span>
-                 </div>
-             </div>
-         ))}
+        {/* Network Mode Indicator */}
+        <div className="mt-4 flex items-center justify-between bg-black/40 rounded p-2 border border-slate-800">
+            <div className="flex items-center gap-2 opacity-50">
+                <WifiOff size={14} className="text-red-500" />
+                <span className="text-[10px] text-slate-400 line-through">INTERNET</span>
+            </div>
+            <div className="h-4 w-[1px] bg-slate-700"></div>
+            <div className="flex items-center gap-2">
+                <Bluetooth size={14} className={status === "ACTIVE" ? "text-blue-400" : "text-slate-600"} />
+                <span className={`text-[10px] ${status === "ACTIVE" ? "text-blue-400 font-bold" : "text-slate-600"}`}>
+                    BLUETOOTH P2P
+                </span>
+            </div>
+        </div>
       </div>
 
-      {/* CHAT AREA */}
-      <div className="h-1/3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-emerald-900/30 flex">
-          {/* Logs */}
-          <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 p-2 overflow-y-auto bg-slate-50 dark:bg-black font-mono">
-              <div className="text-[9px] font-bold text-slate-500 mb-2 border-b pb-1">KERNEL LOGS</div>
-              {logs.map((log, i) => <div key={i} className="text-[8px] text-slate-600 dark:text-emerald-500/70 mb-1">{log}</div>)}
-              <div ref={logsEndRef}/>
-          </div>
+      {/* --- MAIN CONTENT / LOGS --- */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-black/90 relative">
           
-          {/* Chat */}
-          <div className="flex-1 flex flex-col">
-              <div className="flex-1 p-3 overflow-y-auto space-y-2">
-                  {messages.map(msg => (
-                      <div key={msg.id} className={`flex flex-col ${msg.sender === "ME" ? "items-end" : "items-start"} animate-in slide-in-from-bottom-2`}>
-                          <div className={`px-3 py-2 rounded-lg text-xs max-w-[90%] shadow-sm ${
-                              msg.sender === "ME" 
-                              ? "bg-blue-600 text-white rounded-br-none" 
-                              : "bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-none"
-                          }`}>
-                              {msg.text}
-                          </div>
-                          <span className="text-[9px] text-slate-400 mt-1">
-                              {msg.status === 'sent' ? 'Delivered' : msg.sender === "ME" ? 'Sending...' : `From ${msg.sender}`}
-                          </span>
-                      </div>
-                  ))}
+          {/* Welcome / Start Screen */}
+          {status === "IDLE" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center opacity-80">
+                <div className="mb-6 relative">
+                    <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 rounded-full"></div>
+                    <Smartphone size={48} className="text-slate-500 relative z-10" />
+                </div>
+                <button 
+                    onClick={activateMesh}
+                    className="group relative bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-bold shadow-2xl transition-all active:scale-95 w-full max-w-xs overflow-hidden"
+                >
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    <div className="flex items-center justify-center gap-3">
+                        <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" /> 
+                        INITIALIZE RADIO
+                    </div>
+                </button>
+                <p className="text-xs text-slate-500 mt-4 max-w-[200px]">
+                    Disconnects Internet. Uses Bluetooth for Disaster Comms.
+                </p>
+            </div>
+          )}
+
+          {/* Scanning Animation */}
+          {status === "SCANNING" && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center">
+                 <Activity className="text-emerald-500 animate-bounce" size={40} />
+                 <p className="text-emerald-500 text-xs mt-4 tracking-widest animate-pulse">CALIBRATING FREQUENCIES...</p>
+             </div>
+          )}
+
+          {/* Chat Logs */}
+          {logs.map((log, i) => (
+              <div key={i} className={`flex flex-col ${
+                  log.type === "tx" ? "items-end" : 
+                  log.type === "rx" ? "items-start" : "items-center"
+              }`}>
+                  <div className={`max-w-[85%] px-3 py-2 rounded-lg text-xs md:text-sm mb-1 ${
+                      log.type === "tx" ? "bg-blue-900/40 text-blue-200 border border-blue-800 rounded-tr-none" :
+                      log.type === "rx" ? "bg-emerald-900/40 text-emerald-200 border border-emerald-800 rounded-tl-none" :
+                      log.type === "error" ? "bg-red-900/20 text-red-400 border border-red-900/50" :
+                      "text-slate-500 text-[10px] uppercase tracking-widest my-2" // System logs
+                  }`}>
+                      {log.type !== "system" && log.type !== "error" && (
+                          <span className="block text-[9px] opacity-50 mb-1">{log.time}</span>
+                      )}
+                      {log.msg}
+                  </div>
               </div>
-              
-              <div className="p-2 border-t border-slate-200 dark:border-slate-800 flex gap-2 bg-slate-50 dark:bg-slate-950">
-                  <input 
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Broadcast message..."
-                    className="flex-1 bg-white dark:bg-slate-800 rounded-full px-4 py-2 text-xs text-slate-900 dark:text-white outline-none border border-slate-200 dark:border-slate-700"
-                  />
-                  <button 
-                    onClick={handleSend} 
-                    className="w-9 h-9 rounded-full flex items-center justify-center bg-blue-600 text-white active:scale-90 transition-transform shadow-lg"
-                  >
-                      <Send size={16}/>
-                  </button>
-              </div>
-          </div>
+          ))}
+          <div ref={logsEndRef} />
       </div>
+
+      {/* --- INPUT AREA --- */}
+      <div className="p-3 bg-slate-900 border-t border-emerald-900/50 flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+          <input 
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            disabled={status !== "ACTIVE"}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+            className="flex-1 bg-black/50 border border-slate-700 text-white px-4 py-3 rounded-xl text-sm focus:border-blue-500 focus:bg-black outline-none transition-all placeholder:text-slate-600 disabled:opacity-50"
+            placeholder={status === "ACTIVE" ? "Broadcast via Bluetooth..." : "Radio Offline"}
+          />
+          <button 
+            onClick={sendMessage}
+            disabled={status !== "ACTIVE"}
+            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                status === "ACTIVE" 
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50 active:scale-95 hover:bg-blue-500" 
+                : "bg-slate-800 text-slate-600"
+            }`}
+          >
+              <Send size={18} />
+          </button>
+      </div>
+
     </div>
   );
 };

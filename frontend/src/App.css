@@ -1,97 +1,157 @@
-/* RESET */
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+/* --- APP LAYOUT --- */
+#root {
+  display: flex;
+  flex-direction: column;
+  background-color: #020617; /* Match Tailwind bg-slate-950 */
 }
 
-body, html, #root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden; /* No scrollbars */
-}
-
-/* MAP CONTAINER */
+/* --- 🗺️ MAP CONTAINER --- */
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
   z-index: 1;
+  background-color: #020617 !important; /* Prevents white flash while loading */
 }
 
-/* REMOVE WHITE BOX BEHIND EMOJIS */
-.custom-emoji-icon {
-  background: transparent !important;
-  border: none !important;
+/* --- 📍 LEAFLET DARK MODE OVERRIDES --- */
+/* This fixes the bright white zoom buttons and popups */
+
+/* 1. Zoom Controls */
+.leaflet-bar a {
+  background-color: rgba(15, 23, 42, 0.9) !important; /* Slate 900 */
+  color: #10b981 !important; /* Emerald 500 */
+  border-bottom: 1px solid #334155 !important;
+}
+.leaflet-bar a:hover {
+  background-color: #1e293b !important; /* Slate 800 */
 }
 
-/* FLOATING DASHBOARD */
+/* 2. Popups (The bubbles when you click markers) */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background-color: rgba(2, 6, 23, 0.95) !important; /* Dark Slate */
+  color: #e2e8f0 !important; /* Slate 200 */
+  border: 1px solid #10b981 !important; /* Emerald Border */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 8px !important;
+}
+
+/* 3. Attribution Text (Bottom right) */
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: #94a3b8 !important;
+}
+
+/* --- 🎛️ FLOATING DASHBOARD (The Glass Panel) --- */
 .control-panel {
   position: absolute;
   top: 20px;
   right: 20px;
-  background: rgba(255, 255, 255, 0.95);
+  /* Tactical Glass Effect */
+  background: rgba(15, 23, 42, 0.85); /* Slate 900 @ 85% */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3); /* Subtle Emerald Border */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 1000;
   width: 280px;
+  color: white;
 }
 
 .control-panel h2 {
   margin-top: 0;
-  font-size: 1.2rem;
-  color: #1a1a1a;
+  font-size: 1.1rem;
+  color: #10b981; /* Emerald Title */
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
 }
 
+/* --- 🔘 DEMO BUTTON --- */
 .demo-btn {
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  padding: 10px 20px;
+  background: #1e293b; /* Slate 800 */
+  color: #3b82f6; /* Blue Text */
+  border: 1px solid #3b82f6;
+  padding: 12px 20px;
   border-radius: 8px;
   cursor: pointer;
   width: 100%;
   font-weight: bold;
-  transition: background 0.3s;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
 }
 
 .demo-btn:hover {
-  background: #333;
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); /* Blue Glow */
 }
 
-/* MIC BUTTON */
+/* --- 🎙️ TACTICAL MIC BUTTON --- */
 .mic-btn {
   position: absolute;
-  bottom: 30px;
+  /* Safe Area Calculation: 30px from bottom OR 30px from Home Bar */
+  bottom: calc(30px + env(safe-area-inset-bottom)); 
   left: 50%;
   transform: translateX(-50%);
-  width: 70px;
-  height: 70px;
+  
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  border: none;
-  background: #2563eb;
-  color: white;
-  font-size: 30px;
+  
+  /* Dark Theme Styling */
+  background: #0f172a; /* Slate 900 */
+  border: 2px solid #3b82f6; /* Blue Border */
+  color: #3b82f6;
+  
+  font-size: 28px;
   cursor: pointer;
   z-index: 1000;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mic-btn:hover {
-  transform: translateX(-50%) scale(1.1);
+  transform: translateX(-50%) scale(1.05);
+  background: #1e293b;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
 }
 
+/* Active State (Listening) */
 .mic-btn.listening {
-  background: #dc2626;
-  animation: pulse 1.5s infinite;
+  background: #450a0a; /* Dark Red background */
+  border-color: #ef4444; /* Bright Red border */
+  color: #ef4444;
+  animation: radar-pulse 2s infinite;
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-  70% { box-shadow: 0 0 0 20px rgba(220, 38, 38, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+/* --- 📡 RADAR PULSE ANIMATION --- */
+@keyframes radar-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* --- 🧼 UTILITIES --- */
+.custom-emoji-icon {
+  background: transparent !important;
+  border: none !important;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); /* Shadow for emojis on map */
 }

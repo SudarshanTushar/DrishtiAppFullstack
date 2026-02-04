@@ -1,225 +1,121 @@
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
-import time
-import random
-import torch
-import networkx as nx
-import osmnx as ox
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
-from shapely.geometry import Point
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 import os
-import math
+import json
+from datetime import datetime
 
-# ============================================================================
-# 🔥 DRISHTI-NE: REAL DATA AI ROUTING ENGINE
-# ============================================================================
+# --- 1. IMPORT NEW XGBOOST/GNN MODULE ---
+# Hum 'xgboost' folder ke andar 'ne_predictor.py' se function bula rahe hain
+try:
+    from xgboost.ne_predictor import predict_ne_risk
+    print("✅ XGBoost/GNN Module Imported Successfully")
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import NE Predictor. Check folder structure. Error: {e}")
+    # Dummy function to prevent crash if import fails
+    def predict_ne_risk(data):
+        return {"error": "Model module not found", "risk_level": 0}
 
-# --- CONFIGURATION ---
-MODEL_PATH = "ai_models/distilbert"
-MAPBOX_TOKEN = "pk.eyJ1IjoidHVzaGFyZ2FkaGUiLCJhIjoiY21rbnlpNjZqMDBtbDNsc2FmZW9idWwzdSJ9.5kKsUK-lEQmpM5kJrtvkDg"
+# --- 2. APP SETUP ---
+app = Flask(__name__)
+CORS(app)  # React Frontend ko allow karne ke liye
 
-# Disable OSMnx logging to keep terminal clean
-ox.settings.log_console = False
-ox.settings.use_cache = True
-ox.settings.timeout = 120 
-ox.settings.max_query_area_size = 500000000 
+# --- 3. DATABASE SETUP (Placeholder based on requirements.txt) ---
+# Agar aapko DB connect karna hai toh yahan credentials dalein
+# from flask_sqlalchemy import SQLAlchemy
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///disaster.db')
+# db = SQLAlchemy(app)
 
-app = FastAPI(title="Drishti-NE: AI Routing Engine")
+# --- ROUTES ---
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "Online",
+        "system": "Disaster Management Backend (XGBoost Enabled)",
+        "timestamp": datetime.now().isoformat()
+    })
 
-# --- 🧠 ENHANCED AI ENGINE CLASS ---
-class DisasterRoutingEngine:
-    def __init__(self, model_path):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model_path = model_path
-        print(f"🔥 [AI ENGINE] Initializing on {self.device}...")
-        
-        # 1. Verify Model Files
-        required_files = ["config.json", "model.safetensors", "tokenizer.json", "vocab.txt"]
-        missing_files = [f for f in required_files if not os.path.exists(os.path.join(model_path, f))]
-        
-        # 2. Load Model (with Fallback)
-        try:
-            if missing_files:
-                raise FileNotFoundError(f"Missing: {missing_files}")
-            
-            self.model = DistilBertForSequenceClassification.from_pretrained(model_path).to(self.device)
-            self.tokenizer = DistilBertTokenizer.from_pretrained(model_path)
-            self.model.eval()
-            print("✅ [AI ENGINE] DistilBERT Model Loaded from REAL files.")
-        except Exception as e:
-            print(f"⚠️ [AI ENGINE] Model Error: {e}. Running in SIMULATION MODE.")
-            self.model = None
-            self.tokenizer = None
+# ==========================================
+# 🚀 ROUTE 1: NEW XGBOOST / GNN PREDICTION
+# ==========================================
+@app.route('/api/predict-ne', methods=['POST'])
+def predict_north_east():
+    """
+    Ye route North East region ke liye special XGBoost/GNN model use karta hai.
+    Input Example: { "rainfall": 120, "soil_moisture": 45, "river_level": 8.5 }
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
-        self.G = None # Lazy load graph
+        print(f"Incoming NE Data: {data}")
 
-    def _predict_risk(self, text):
-        """Uses REAL DistilBERT to classify disaster text risk."""
-        if not self.model:
-            # Fallback Logic
-            text = text.lower()
-            if "flood" in text or "block" in text: return "BLOCKED", 0.95
-            if "rain" in text or "slow" in text: return "CAUTION", 0.75
-            return "CLEAR", 0.10
+        # Call the function from ne_predictor.py
+        result = predict_ne_risk(data)
 
-        # REAL INFERENCE
-        inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(self.device)
-        with torch.no_grad():
-            logits = self.model(**inputs).logits
-            probs = torch.nn.functional.softmax(logits, dim=-1)
-
-        pred_id = logits.argmax().item()
-        confidence = probs[0][pred_id].item()
-        
-        label_map = {0: "CLEAR", 1: "CAUTION", 2: "BLOCKED"} # Adjust based on your training labels
-        return label_map.get(pred_id, "CLEAR"), confidence
-
-    def get_route_mapbox(self, start_lat, start_lng, end_lat, end_lng):
-        """Get route geometry from Mapbox API (Fast)"""
-        import requests
-        url = f"https://api.mapbox.com/directions/v5/mapbox/driving/{start_lng},{start_lat};{end_lng},{end_lat}"
-        params = {"access_token": MAPBOX_TOKEN, "geometries": "geojson", "overview": "full"}
-        
-        try:
-            res = requests.get(url, params=params, timeout=5)
-            res.raise_for_status()
-            data = res.json()
-            if not data.get("routes"): return None
-            
-            route = data["routes"][0]
-            return {
-                "coordinates": route["geometry"]["coordinates"],
-                "distance": route["distance"], # meters
-                "duration": route["duration"] # seconds
-            }
-        except Exception as e:
-            print(f"❌ Mapbox Error: {e}")
-            return None
-
-# --- INITIALIZE ENGINE ---
-ai_engine = DisasterRoutingEngine(MODEL_PATH)
-
-# --- SIMULATED LIVE FEED ---
-LIVE_INTEL_FEED = [
-    {"text": "URGENT: Massive water logging on GS Road.", "coords": (26.1300, 91.7200)},
-    {"text": "Landslide warning near Jorbat.", "coords": (26.1100, 91.8000)}
-]
-
-# --- GEOGRAPHIC HELPERS ---
-def get_real_weather_data(lat, lng):
-    # Shillong Plateau (High Rain) vs Plains
-    base_rain = 45 if (25.5 <= lat <= 26.0) else 25 
-    return {"rainfall_mm": base_rain + random.randint(-5, 10)}
-
-def get_real_terrain_slope(lat, lng):
-    # Hills vs Valley
-    slope = 42 if (25.5 <= lat <= 26.0) else 8
-    terrain = "Shillong Plateau" if slope > 30 else "Brahmaputra Valley"
-    return {"slope_degrees": slope, "terrain_type": terrain}
-
-# --- API ENDPOINTS ---
-
-@app.get("/api/v1/system/readiness") # Matches frontend path
-def check_readiness():
-    return {"status": "READY", "ai_model": "Active" if ai_engine.model else "Fallback"}
-
-@app.get("/api/v1/iot/feed") # Matches frontend path
-def get_iot_feed():
-    risk_score = 45 # Baseline
-    if LIVE_INTEL_FEED:
-        risk_score = 75 # Jump if intel exists
-    
-    return {
-        "risk_index": risk_score,
-        "threat_level": "HIGH" if risk_score > 70 else "MODERATE",
-        "active_sensors": 42
-    }
-
-@app.post("/api/v1/core/analyze-route") # Matches frontend path
-async def analyze_route(request: dict):
-    start_lat = request.get("start_lat")
-    start_lng = request.get("start_lng")
-    end_lat = request.get("end_lat")
-    end_lng = request.get("end_lng")
-
-    # 1. Get Route Geometry
-    route = ai_engine.get_route_mapbox(start_lat, start_lng, end_lat, end_lng)
-    
-    if not route:
-        # Fallback Line
-        return {
-            "route_analysis": {
-                "coordinates": [[start_lng, start_lat], [end_lng, end_lat]],
-                "risk_level": "UNKNOWN",
-                "distance_km": 0,
-                "eta": "Unknown"
-            }
+        # Response Formatting
+        response = {
+            "status": "success",
+            "model_used": "ManualSTGNN + XGBoost",
+            "timestamp": datetime.now().isoformat(),
+            "data": result
         }
+        return jsonify(response)
 
-    # 2. Analyze Risk (AI + Geo)
-    risk_level = "SAFE"
-    risk_score = 10
-    weather = get_real_weather_data(start_lat, start_lng)
-    terrain = get_real_terrain_slope(start_lat, start_lng)
+    except Exception as e:
+        print(f"❌ Error in NE Prediction: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    # Check against Intel
-    for report in LIVE_INTEL_FEED:
-        # Simple distance check to intel (approx)
-        r_lat, r_lng = report["coords"]
-        if abs(start_lat - r_lat) < 0.1 and abs(start_lng - r_lng) < 0.1:
-            label, conf = ai_engine._predict_risk(report["text"])
-            if label == "BLOCKED":
-                risk_level = "DANGER"
-                risk_score = 90
-            elif label == "CAUTION" and risk_level != "DANGER":
-                risk_level = "CAUTION"
-                risk_score = 60
+# ==========================================
+# 🚀 ROUTE 2: GENERAL DISASTER ALERTS (Previous Feature)
+# ==========================================
+@app.route('/api/alert', methods=['POST'])
+def send_alert():
+    """
+    Ye route general alerts handle karta hai (SMS/Notification logic yahan aayega).
+    """
+    try:
+        data = request.json
+        location = data.get('location', 'Unknown')
+        alert_type = data.get('type', 'General')
+        
+        # Yahan aap SMS/Email logic add kar sakte hain
+        print(f"⚠️ ALERT RECEIVED: {alert_type} at {location}")
 
-    return {
-        "route_analysis": {
-            "coordinates": route["coordinates"],
-            "distance_km": round(route["distance"] / 1000, 2),
-            "eta": f"{int(route['duration']/60)} mins",
-            "risk_level": risk_level,
-            "risk_score": risk_score,
-            "weather_data": weather,
-            "terrain_data": terrain,
-            "threat_type": "Landslide Risk" if risk_level == "DANGER" else "None"
-        }
-    }
+        return jsonify({
+            "status": "sent",
+            "message": f"Alert for {alert_type} broadcasted to {location}."
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-@app.post("/api/v1/core/nearest_hospital")
-def nearest_hospital(req: dict):
-    lat, lng = req.get("lat"), req.get("lng")
-    
-    # Real Hospitals
-    hospitals = [
-        {"name": "Civil Hospital Shillong", "lat": 25.5750, "lng": 91.8820},
-        {"name": "Gauhati Medical College", "lat": 26.1445, "lng": 91.7362},
-        {"name": "NEIGRIHMS", "lat": 25.5788, "lng": 91.8933}
-    ]
-    
-    # Find nearest
-    nearest = min(hospitals, key=lambda h: ((h['lat']-lat)**2 + (h['lng']-lng)**2))
-    
-    # Get Route to it
-    route = ai_engine.get_route_mapbox(lat, lng, nearest['lat'], nearest['lng'])
-    
-    return {
-        "hospital_name": nearest['name'],
-        "distance_km": round(route['distance']/1000, 2) if route else 5.0,
-        "coordinates": route['coordinates'] if route else [[lng, lat], [nearest['lng'], nearest['lat']]],
-        "type": "EMERGENCY"
-    }
+# ==========================================
+# 🚀 ROUTE 3: REPORT GENERATION (FPDF Feature)
+# ==========================================
+@app.route('/api/generate-report', methods=['GET'])
+def generate_report():
+    """
+    PDF Report generate karne ka placeholder (FPDF2 installed hai).
+    """
+    try:
+        # Simple Logic to demonstrate FPDF usage
+        from fpdf import FPDF
+        
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="Disaster Management Report", ln=1, align='C')
+        pdf.cell(200, 10, txt=f"Generated: {datetime.now()}", ln=2, align='C')
+        pdf.cell(200, 10, txt="Status: All Systems Operational", ln=3, align='L')
+        
+        report_path = "report.pdf"
+        pdf.output(report_path)
+        
+        return f"Report Generated: {report_path} (Logic Ready)"
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
-# Run: uvicorn main:app --host 0.0.0.0 --port 8000
+if __name__ == '__main__':
+    # '0.0.0.0' allows access from other devices (Mobile App Testing)
+    app.run(host='0.0.0.0', port=5000, debug=True)

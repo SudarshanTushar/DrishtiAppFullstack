@@ -17,16 +17,32 @@ export default {
       // 1. CUSTOM FONTS
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        mono: ['JetBrains Mono', 'monospace'], // Great for logs/terminal
       },
-      // 2. SAFE AREA PADDING (FIXED FOR MOBILE NOTCHES)
+      
+      // 2. TACTICAL COLOR PALETTE
+      // Use: bg-tactical-dark, text-tactical-green, border-tactical-grid
+      colors: {
+        tactical: {
+          dark: "#020617",   // Deep Slate (Background)
+          panel: "#0f172a",  // Lighter Slate (Headers/Cards)
+          green: "#10b981",  // Emerald (Online/Mesh Active)
+          blue: "#3b82f6",   // Blue (Bluetooth)
+          red: "#ef4444",    // Red (Error/Offline)
+          grid: "#1e293b",   // Grid lines
+        }
+      },
+
+      // 3. SAFE AREA SPACING (Crucial for Mobile)
+      // Allows classes like: pt-safe-top, pb-safe-bottom, mt-safe-top
       spacing: {
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
         'safe-left': 'env(safe-area-inset-left)',
         'safe-right': 'env(safe-area-inset-right)',
       },
-      // 3. ANIMATION KEYFRAMES
+
+      // 4. CUSTOM ANIMATIONS
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -46,19 +62,25 @@ export default {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
-        // CRT Scanline Effect
+        // CRT Scanline Effect (Matches index.css)
         scanline: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100%)' },
+          '0%': { transform: 'translateY(-100%)', opacity: '0' },
+          '50%': { opacity: '1' },
+          '100%': { transform: 'translateY(100%)', opacity: '0' },
         },
+        // Critical Alert Pulse (Red Shadow)
+        'critical-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)' },
+          '70%': { boxShadow: '0 0 0 10px rgba(239, 68, 68, 0)' },
+        }
       },
-      // 4. ANIMATION UTILITIES
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "scanline": "scanline 2s linear infinite",
+        "scanline": "scanline 4s linear infinite",
         'marquee': 'marquee 15s linear infinite',
         'scan': 'scan 3s linear infinite',
+        'critical': 'critical-pulse 2s infinite',
       },
     },
   },

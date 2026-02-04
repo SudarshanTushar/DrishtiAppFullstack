@@ -1,18 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    // ⚠️ CRITICAL: This namespace matches your build, do not change.
     namespace "com.teammatrix.disasterapp"
-    
     compileSdkVersion rootProject.ext.compileSdkVersion
     
     defaultConfig {
         applicationId "com.teammatrix.disasterapp"
-        
-        // ✅ THE FIX: We bumped this to 24 to fix "Manifest Merger Failed"
-        // Most modern map/bluetooth plugins require at least 23 or 24.
-        minSdkVersion 24 
-        
+        minSdkVersion 24  // Required for Google Nearby Connections
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
@@ -20,7 +14,6 @@ android {
         
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
@@ -41,14 +34,21 @@ repositories {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    
+    // ✅ STANDARD ANDROID LIBS (JAVA)
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation project(':capacitor-cordova-android-plugins')
+
+    // ✅ GOOGLE NEARBY (For Mesh Network)
+    implementation 'com.google.android.gms:play-services-nearby:19.0.0'
+    
+    // Tests
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
 }
 
 apply from: 'capacitor.build.gradle'
