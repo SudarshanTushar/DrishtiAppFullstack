@@ -79,3 +79,79 @@ Follow these steps to deploy the system locally.
 ```bash
 git clone [https://github.com/yourusername/drishti-fullstack.git](https://github.com/yourusername/drishti-fullstack.git)
 cd drishti-fullstack
+```
+
+### 2️⃣ Backend Setup (The Brain)
+```bash
+cd backend
+python -m venv venv
+
+# Windows
+.\venv\Scripts\activate
+# Mac/Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
+Server is now live at http://localhost:8000.
+
+### 3️⃣ Frontend Setup (The Interface)
+Open a new terminal:
+
+```Bash
+cd frontend
+npm install
+npm run dev
+```
+App is now live at http://localhost:5173.
+
+### 4️⃣ Android Build (The Real Deal)
+To test the Mesh Network features, you must run it on a physical device:
+
+```Bash
+cd frontend
+npm run build
+npx cap sync
+npx cap open android
+Android Studio will launch. Connect your phone via USB and hit 'Run'.
+```
+```
+📂 Project Structure
+Drishti-App/
+├── 📂 backend/             # Python Neural Core & API
+│   ├── 📂 ai_engine/       # ML Models & Prediction Logic
+│   ├── 📂 intelligence/    # Data Analytics Modules
+│   └── main.py             # Server Entry Point
+│
+├── 📂 frontend/            # React + Capacitor App
+│   ├── 📂 android/         # Native Java Code (Mesh Plugin)
+│   ├── 📂 src/
+│   │   ├── 📂 components/  # UI Elements (Glassmorphism)
+│   │   ├── 📂 pages/       # Map, SOS, Network Screens
+│   │   └── 📂 services/    # Logic Layers
+│   └── vite.config.js
+│
+└── README.md               # Documentation
+```
+🤝 Contribution
+Team Matrix believes in open innovation.
+
+1. Fork the repo.
+
+2. Create your feature branch (git checkout -b feature/AmazingFeature).
+
+3. Commit your changes.
+
+4. Push to the branch.
+
+5. Open a Pull Request.
+
+📜 License
+Distributed under the MIT License. See LICENSE for more information.
+
+<div align="center">
+
+Built with ❤️ by Team Matrix for a Safer Tomorrow. Jai Hind 🇮🇳
+
+</div>
