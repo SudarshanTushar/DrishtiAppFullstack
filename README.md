@@ -1,93 +1,81 @@
-# 🚁 DRISHTI-NE: Disaster Response & Intelligence System
+# 🛡️ DRISHTI (Team Matrix)
+### *AI-Powered Offline Disaster Response & Mesh Communication Unit*
 
-> _Survive. Connect. Recover._
+![Project Status](https://img.shields.io/badge/Status-Operational-emerald?style=for-the-badge)
+![Tech Stack](https://img.shields.io/badge/Stack-MERN%20%2B%20Python%20AI-blue?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web-orange?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge)
 
-![Drishti Banner](https://github.com/SudarshanTushar/DrishtiAppFullstack/blob/main/assets/icon/app-icon.png)
+> **"When all networks fail, DRISHTI works."**
+> _Connecting Lives when the Internet Disconnects._
 
-## 🚨 The Problem
+---
 
-During floods (like Sikkim 2023), standard communication fails within **4 hours**.
+## 🌟 Overview
 
-- **No Internet:** Victims cannot send SOS.
-- **No Data:** Rescue teams work blindly.
-- **No Coordination:** Government relies on outdated manual reports.
+**Drishti** is a revolutionary disaster management system designed for challenging terrains like North-East India. It is not just an app; it is a **Life-Saving Tool** that maintains communication lines even when the internet is down.
 
-## ⚡ The Solution: Drishti-NE
+Powered by our proprietary **Matrix Kernel**, it establishes an **Offline Mesh Network** using Bluetooth and Wi-Fi Direct, allowing devices to daisy-chain messages during a crisis. Simultaneously, the **Neural Engine** analyzes terrain data to predict landslide and flood risks in real-time.
 
-A fully offline-capable ecosystem combining **AI-Powered Routing**, **Real-time Risk Assessment**, and **Government Command & Control**. The system provides intelligent disaster response with mesh networking as a fail-safe when infrastructure collapses.
+---
 
-## 🛡️ Operational Phases
+## 🚀 Key Features
 
-The system operates in three controlled phases:
+### 📡 1. Matrix Mesh Network (No Internet Required)
+* **Zero Connectivity Comms:** Functions perfectly when cell towers are down.
+* **Encrypted P2P:** Uses a hybrid Bluetooth Low Energy (BLE) & Wi-Fi Direct protocol for secure, local broadcasting.
+* **Auto-Healing:** If one node fails, the network automatically reroutes messages.
+* _Powered by Native Android Plugin (`MeshPlugin.java`)._
 
-1. **Risk Assessment** – DistilBERT AI evaluates terrain, weather, and route safety using real geographic data.
-2. **Authority Approval** – Command Center officials approve or reject AI recommendations.
-3. **Fail-Safe Response** – Offline mesh communication and peer discovery activate when infrastructure fails.
+### 🧠 2. Neural AI Predictor
+* **Pre-Disaster Warning:** Analyzes satellite data (Rainfall, Soil Moisture, Slope) to predict disaster probability.
+* **Live Risk Score:** Returns a real-time safety score (Safe 🟢 to Critical 🔴).
+* _Powered by Python AI Engine (`ne_predictor.py`)._
 
-## 🎮 HOW TO DEMO
+### 🗺️ 3. Interactive Ops Map
+* **3D Terrain Visualization:** Mapbox integration for detailed topographical views.
+* **Safe Route AI:** Intelligently suggests evacuation routes avoiding danger zones.
+* **Resource Tracking:** Real-time visibility of Hospitals, Relief Camps, and Police Stations.
 
-### Admin Command Center (Desktop View)
-
-1.  **Open Admin Panel** at `/admin`
-2.  **Biometric Login** - Click fingerprint to authenticate
-3.  **Monitor Live Incidents** - View real-time SOS incidents on the tactical dashboard
-4.  **Command & Control** - Approve evacuations, dispatch teams, review SITREP reports
-
-### Citizen App (Mobile/Desktop View)
-
-1.  **Dashboard** - View risk status, nearby incidents, and mesh network connectivity
-2.  **Voice Commands** - Tap mic to ask "Show me evacuation routes" (with AI fallback)
-3.  **Map Navigation** - Get AI-powered safe routes avoiding hazards
-4.  **Offline Mode** - P2P peer discovery continues working without internet
+### 🚨 4. One-Tap SOS Beacon
+* **Instant Alert:** Broadcasts GPS location and medical status to the entire mesh network with a single tap.
+* **Haptic Feedback:** Professional vibration patterns for confirmation in high-stress environments.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React + Vite, Tailwind CSS, Capacitor (Android/iOS), Mapbox GL
-- **Backend:** Python FastAPI, DigitalOcean Deployment
-- **AI/ML:**
-  - DistilBERT (Sentiment/Risk Analysis)
-  - OSMnx + NetworkX (Real Road Network Routing)
-  - Scikit-Learn (Predictive Models)
-- **Database:** PostgreSQL + SQLAlchemy + Alembic migrations
-- **Offline:** Browser Speech Synthesis (Voice), Simulated Bluetooth Mesh (Desktop), Capacitor BLE (Mobile)
+This project is a fusion of cutting-edge technologies:
 
-## 🌟 Key Features
+| Domain | Technologies Used |
+| :--- | :--- |
+| **Frontend (App)** | React.js, Vite, Tailwind CSS, Framer Motion |
+| **Mobile Native** | Capacitor.js, Android Native (Java/Kotlin) for Mesh |
+| **Backend API** | Python (FastAPI/Flask), SQLAlchemy, Pydantic |
+| **AI/ML Engine** | PyTorch, Scikit-Learn (STGNN Models) |
+| **Database** | PostgreSQL / SQLite (Geo-spatial Data) |
+| **Mapping** | Mapbox GL JS, Raster DEM Sources |
 
-1.  **🧠 AI-Powered Routing:** DistilBERT + OSMnx calculates real risk scores for routes based on terrain, weather, and disaster intel.
-2.  **📍 Real Geographic Data:** Actual POIs (hospitals, shelters) in Assam/Meghalaya with live coordinate mapping.
-3.  **🗣️ Voice AI:** Browser-based speech synthesis with cloud AI fallback for natural language commands.
-4.  **📡 Mesh Networking:** P2P peer discovery simulation (desktop) with Capacitor BLE support (mobile).
-5.  **⚖️ Command & Control:** Government dashboard with incident management, SITREP reports, and authority approval workflows.
-6.  **🎯 Simulation Mode:** Built-in demo capabilities for testing disaster scenarios without real emergencies.
+---
 
-## 🚀 How to Run Locally
+## 📸 Screen Preview
 
-### 1. Backend (Python FastAPI)
+| **The Dashboard** | **Mesh Network** | **AI Prediction** |
+| :---: | :---: | :---: |
+| _Real-time status monitoring hub_ | _Offline device discovery radar_ | _High-precision risk analysis_ |
 
+---
+
+## ⚡ Installation & Setup Guide
+
+Follow these steps to deploy the system locally.
+
+### Prerequisites
+* Node.js (v18+)
+* Python (v3.9+)
+* Android Studio (For APK build)
+
+### 1️⃣ Clone Repository
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Backend runs at:** `http://localhost:8000`  
-**API Docs:** `http://localhost:8000/docs`
-
-### 2. Frontend (React + Vite)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-**Frontend runs at:** `http://localhost:5173`
-
-### 3. Database Setup (Optional - for full features)
-
-```bash
-cd backend
-alembic upgrade head
-```
+git clone [https://github.com/yourusername/drishti-fullstack.git](https://github.com/yourusername/drishti-fullstack.git)
+cd drishti-fullstack
