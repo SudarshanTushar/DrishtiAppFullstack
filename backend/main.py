@@ -5,25 +5,21 @@ import sys
 from datetime import datetime
 
 # --- 🔧 CRITICAL PATH FIX ---
-# Current folder ko Python Path mein zabardasti add karte hain
-# Taaki Gunicorn 'ai_engine' folder ko dhoond sake
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 app = Flask(__name__)
 CORS(app)
 
-# --- 🧠 IMPORT AI ENGINE (With Error Capture) ---
+# --- 🧠 IMPORT AI ENGINE ---
 import_error = None
 try:
-    # Humne folder rename kiya tha 'xgboost' -> 'ai_engine'
     from ai_engine.ne_predictor import predict_ne_risk, find_safest_route
     print("✅ AI Engine Loaded Successfully")
 except Exception as e:
-    # Agar error aaya, toh usse save kar lo
     import_error = str(e)
     print(f"❌ FATAL IMPORT ERROR: {e}")
 
-    # Fallback functions (Dummy) taaki server crash na ho
+    # Fallback functions
     def find_safest_route(sl, slg, el, elg):
         return {"error": f"Server Import Failed: {import_error}"}
 
@@ -31,19 +27,14 @@ except Exception as e:
         return {"error": f"Server Import Failed: {import_error}"}
 
 # ==========================================
-# 🏠 ROUTE 1: HOME (Health Check)
+# 🏠 ROUTE 1: HOME
 # ==========================================
 @app.route('/')
 def home():
-    """
-    Browser mein check karne ke liye.
-    Agar AI fail hai, toh yahan reason dikhega.
-    """
     return jsonify({
         "status": "Online",
         "system": "Drishti Backend (Life Saviour Mode)",
-        "ai_engine_status": "✅ Active" if not import_error else f"❌ Inactive (Error: {import_error})",
-        "timestamp": datetime.now().isoformat()
+        "ai_engine_status": "✅ Active" if not import_error else f"❌ Inactive ({import_error})"
     })
 
 # ==========================================
@@ -64,26 +55,17 @@ def analyze_route_risk():
         # 🔥 Call AI Brain
         result = find_safest_route(start_lat, start_lng, end_lat, end_lng)
         
-        # Check if fallback error occurred
         if "error" in result:
             return jsonify(result), 500
 
-        # Extract Best Route
+        # ✅ Extract Best Route & Risky Alternatives
         best_route = result.get('best_route', {})
+        alternatives = result.get('alternatives', []) # Risky routes
         
         return jsonify({
             "status": "success",
-            "route_analysis": {
-                "route_id": best_route.get('id'),
-                "name": best_route.get('name'),
-                "risk_level": best_route.get('risk_level'),
-                "risk_score": best_route.get('risk_score'),
-                "coordinates": best_route.get('coordinates'),
-                "distance_km": best_route.get('distance_km'),
-                "eta": best_route.get('eta'),
-                "weather_data": best_route.get('weather_data'),
-                "recommendation": best_route.get('recommendation')
-            },
+            "route_analysis": best_route,   # GREEN ROUTE
+            "risky_routes": alternatives,   # RED ROUTES (DANGER)
             "timestamp": datetime.now().isoformat()
         })
 
@@ -92,13 +74,12 @@ def analyze_route_risk():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
-# 🚀 ROUTE 3: POINT PREDICTION (Manual)
+# 🚀 ROUTE 3: PREDICTION
 # ==========================================
 @app.route('/api/predict-ne', methods=['POST'])
 def predict_north_east():
     try:
         data = request.json
-        if not data: return jsonify({"error": "No data"}), 400
         result = predict_ne_risk(data)
         return jsonify({"status": "success", "data": result})
     except Exception as e:
