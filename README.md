@@ -76,7 +76,7 @@ Built with a fusion of next-gen technologies for speed, reliability, and scale.
 
 | **Tactical Dashboard** | **Mesh Radar** | **AI Risk Analysis** |
 | :---: | :---: | :---: |
-| ![Dashboard](https://placehold.co/300x600/1e293b/FFF?text=Live+Status+Hub) | ![Mesh](https://placehold.co/300x600/1e293b/FFF?text=Offline+Discovery) | ![AI](https://placehold.co/300x600/1e293b/FFF?text=Risk+Prediction) |
+| ![Dashboard](https://github.com/SudarshanTushar/DrishtiAppFullstack/blob/main/assets/Screenshots/Dashboard.png) | ![Mesh](https://github.com/SudarshanTushar/DrishtiAppFullstack/blob/main/assets/Screenshots/Mesh.png) | ![AI](https://github.com/SudarshanTushar/DrishtiAppFullstack/blob/main/assets/Screenshots/RiskAi.png) |
 | *Real-time status monitoring* | *Offline device discovery* | *High-precision risk analysis* |
 
 ---
