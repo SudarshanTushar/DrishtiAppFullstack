@@ -1,236 +1,163 @@
-# 🧠 DRISHTI-NE Backend: AI Routing Engine
+<div align="center">
 
-> **Real Data AI Routing Engine** - DistilBERT + OSMnx + NetworkX
+# 🧠 DRISHTI: NEURAL CORE
+### *The Central Intelligence & Predictive Engine*
 
-## 🔥 Architecture Overview
+![System Status](https://img.shields.io/badge/System-ONLINE-emerald?style=for-the-badge&logo=statuspage&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![AI Model](https://img.shields.io/badge/Model-STGNN-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![API](https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 
-This backend powers the **DRISHTI-NE Disaster Response System** with real AI-driven route analysis and risk assessment.
+<br />
 
-### Core Technologies
+> **"Data is noise. Intelligence is survival."**
+>
+> *Processing terrain telemetry, predicting catastrophes, and orchestrating the rescue grid.*
 
-- **FastAPI** - High-performance async Python web framework
-- **DistilBERT** - Transformer model for text risk classification (config.json + tokenizer + vocab)
-- **OSMnx** - Real OpenStreetMap road network data for Northeast India
-- **NetworkX** - Graph algorithms for shortest path calculation
-- **PyTorch** - Deep learning inference (CPU optimized)
-- **PostgreSQL** - Database with Alembic migrations
+[ **API Docs** ](http://localhost:8000/docs) • [ **Architecture** ](#-system-architecture) • [ **Deploy** ](#-deployment-protocol)
 
-## 🌟 Key Features
+</div>
 
-### 1. **Real AI Risk Assessment**
+---
 
-- DistilBERT model analyzes disaster intelligence reports
-- Outputs risk levels: `CLEAR`, `CAUTION`, `BLOCKED` with confidence scores
-- Dynamic risk scoring (not hardcoded percentages)
-- Model files verified: `config.json`, `tokenizer.json`, `vocab.txt`, `model.safetensors`
+## 📡 System Overview
 
-### 2. **Geographic Intelligence**
+The **Drishti Backend** serves as the **"Cortex"** of the entire disaster management ecosystem. While the mobile units operate in a decentralized mesh, the Backend aggregates, analyzes, and learns from data when connectivity is available.
 
-- Real terrain analysis with slope calculation (°)
-- Weather data integration (rainfall patterns for NE India)
-- Actual POI database (hospitals/shelters in Assam/Meghalaya/Manipur/etc.)
-- Seasonal monsoon risk factors
+It houses the **Pre-Disaster Prediction Engine**, a custom-trained **Spatio-Temporal Graph Neural Network (STGNN)** that analyzes geological data (slope, moisture, rainfall) to forecast landslides with high precision.
 
-### 3. **Advanced Routing**
+### ⚡ Core Capabilities
+* **Predictive Forensics:** Real-time inference of landslide risks using PyTorch.
+* **Tactical Data Aggregation:** Syncs logs from offline mesh networks when they regain connectivity.
+* **Geospatial Intelligence:** Manages critical resource locations (Hospitals, Helipads).
+* **Identity Management:** Secure authentication for Command Centre admins.
 
-- OSMnx downloads real road networks on-demand
-- NetworkX computes shortest paths with disaster avoidance
-- Intelligent route comparison (standard vs. safe alternative)
-- Support for inter-state long-distance routing (150+ km)
-- Lazy loading for fast server startup
+---
 
-### 4. **Emergency Response**
+## 🛠️ The Tech Arsenal
 
-- `/nearest_hospital` - Finds closest medical facility from 18+ real NE India hospitals
-- Emergency mode prioritization
-- Real-time distance and duration calculation using Haversine formula
+Built for speed, scalability, and scientific accuracy.
 
-## 📡 API Endpoints
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Runtime** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) | Core Logic Execution |
+| **API Framework** | **FastAPI / Flask** | High-performance Async Endpoints |
+| **AI/ML Engine** | **PyTorch + Scikit-Learn** | Neural Network Inference (STGNN) |
+| **Database** | **PostgreSQL / SQLite** | Geo-Spatial Persistent Storage |
+| **ORM** | **SQLAlchemy + Alembic** | Database Schema & Migrations |
+| **Deployment** | **Gunicorn + Docker** | Production Process Management |
 
-### Core Endpoints
+---
 
-| Method | Endpoint            | Description                     |
-| ------ | ------------------- | ------------------------------- |
-| `GET`  | `/`                 | Health check with system status |
-| `GET`  | `/system/readiness` | Detailed system diagnostics     |
-| `GET`  | `/docs`             | Interactive API documentation   |
+## 📂 System Architecture
 
-### Intelligence Endpoints
-
-| Method | Endpoint            | Description                                   |
-| ------ | ------------------- | --------------------------------------------- |
-| `GET`  | `/iot/feed`         | Real-time risk index from DistilBERT analysis |
-| `GET`  | `/analyze`          | Route analysis (URL params)                   |
-| `POST` | `/analyze_route`    | Route analysis (JSON body)                    |
-| `POST` | `/nearest_hospital` | Emergency hospital finder                     |
-
-### Request Example: `/analyze_route`
-
-```json
-{
-  "start_lat": 26.1445,
-  "start_lng": 91.7362,
-  "end_lat": 25.5788,
-  "end_lng": 91.8933,
-  "emergency": false
-}
-```
-
-### Response Structure
-
-```json
-{
-  "type": "SAFE",
-  "confidence_score": 12,
-  "reason": "✅ Route is clear. No disasters detected on path.",
-  "coordinates": [[91.7362, 26.1445], ...],
-  "distance_km": 104.5,
-  "duration_min": 145,
-  "weather_data": {
-    "rainfall_mm": 35,
-    "season": "Monsoon"
-  },
-  "terrain_data": {
-    "slope_degrees": 18,
-    "terrain_type": "Hills"
-  },
-  "ai_model_confidence": 0.92,
-  "algorithm_metadata": {
-    "model_path": "./ai_models/distilbert",
-    "using_real_model": true,
-    "device": "cpu",
-    "algorithm": "OSMnx + NetworkX + DistilBERT AI"
-  }
-}
-```
-
-## 🚀 Setup & Installation
-
-### Prerequisites
-
-- Python 3.11+
-- pip (Python package manager)
-- 2GB+ RAM (for DistilBERT inference)
-- Internet connection (for OSMnx map downloads)
-
-### 1. Install Dependencies
+The backend is modularized into tactical intelligence units:
 
 ```bash
-cd backend
+backend/
+├── 📂 ai_engine/           # 🧠 THE CORTEX (Machine Learning)
+│   ├── 📂 data/            # Training Telemetry (CSV)
+│   ├── 📂 models/          # Trained Weights (.pth)
+│   └── ne_predictor.py     # Inference Logic (The Brain)
+│
+├── 📂 intelligence/        # 📊 TACTICAL MODULES
+│   ├── analytics.py        # Disaster Trends
+│   ├── risk_model.py       # Mathematical Risk Calculation
+│   ├── iot_network.py      # Sensor Grid Sync
+│   └── gis.py              # Map Data Processing
+│
+├── 📂 core/                # ⚙️ KERNEL
+│   ├── routing.py          # Evacuation Path Algorithms
+│   └── pipeline.py         # Data Ingestion Pipelines
+│
+├── 📂 db/                  # 💾 MEMORY
+│   ├── models.py           # Database Schemas
+│   └── session.py          # Connection Pooling
+│
+├── main.py                 # 🚀 ENTRY POINT
+└── requirements.txt        # Dependency Manifest
+```
+⚡ Deployment Protocol (Setup Guide)
+Follow this sequence to activate the Neural Core on your local machine.
+
+### 1️⃣ Prerequisite Check
+Ensure your environment meets the military standards:
+
+Python 3.9+ installed.
+
+Virtual Environment capability.
+
+### 2️⃣ Initialize Virtual Environment
+Isolate dependencies to prevent system conflict.
+
+```bash
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
+
+# Mac/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+### 3️⃣ Install Dependencies
+Load the tactical libraries.
+
+```bash
 pip install -r requirements.txt
 ```
-
-**Key packages:**
-
-- `fastapi==0.109.0` - Web framework
-- `torch==2.2.0+cpu` - PyTorch CPU-only
-- `transformers==4.37.2` - HuggingFace DistilBERT
-- `osmnx`, `networkx` - Routing engine
-- `sqlalchemy`, `alembic`, `psycopg2-binary` - Database
-
-### 2. Run Development Server
+### 4️⃣ Activate Neural Core
+Launch the server. The AI Engine will preload the manual_stgnn.pth model into memory.
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python main.py
 ```
+🟢 Status: Server active at http://localhost:8000 📄 Docs: Swagger UI available at http://localhost:8000/docs
 
-**Server starts at:** `http://localhost:8000`  
-**API Docs:** `http://localhost:8000/docs`
+🧠 AI Engine Details (The Science)
+The heart of the backend is the ne_predictor.py module.
 
-### 3. Database Migration (Optional)
+Model Architecture: Spatio-Temporal Graph Neural Network (STGNN).
+
+Input Features:
+
+🌧️ Rainfall (mm): 7-day cumulative precipitation.
+
+💧 Soil Moisture (%): Saturation levels via satellite telemetry.
+
+⛰️ Slope (degrees): Terrain angle derived from DEM data.
+
+Output: Probability Score (0.0 - 1.0) classification for "Landslide Event".
+
+🔐 Configuration (.env)
+Create a .env file in the root directory to secure your perimeter.
+
+Code snippet
+# Database Configuration
+DATABASE_URL=sqlite:///./drishti.db  # Or PostgreSQL URL
+
+# Security Keys
+SECRET_KEY=your_super_secret_military_grade_key
+ALGORITHM=HS256
+
+# Mapbox / External APIs
+MAPBOX_API_KEY=pk.your_mapbox_token
+🚀 Production Deployment
+To deploy this unit to DigitalOcean or a VPS, use the included deployment script.
 
 ```bash
-# Initialize database
-alembic upgrade head
+# Give execution permissions
+chmod +x deploy_digitalocean.sh
+
+# Execute Deployment
+./deploy_digitalocean.sh
 ```
+This script sets up Gunicorn, Nginx, and Systemd services automatically.
 
-## 🏗️ Project Structure
+<div align="center">
 
-```
-backend/
-├── main.py                   # FastAPI app + AI routing engine
-├── requirements.txt          # Python dependencies
-├── alembic.ini              # Database migration config
-├── ai_models/
-│   └── distilbert/          # DistilBERT model files
-│       ├── config.json
-│       ├── model.safetensors
-│       ├── tokenizer.json
-│       ├── vocab.txt
-│       └── ...
-├── alembic/                 # Database migrations
-│   ├── env.py
-│   └── versions/
-├── db/                      # Database models
-│   ├── models.py
-│   └── session.py
-├── intelligence/            # AI modules
-│   ├── analytics.py
-│   ├── risk_model.py
-│   ├── vision.py
-│   └── ...
-└── core/                    # Core services
-    ├── pipeline.py
-    ├── routing.py
-    └── voice.py
-```
+🛡️ Providing Intelligence. Saving Lives.
+Backend Engineered by Team Matrix
 
-## 🌍 Deployment
+Jai Hind 🇮🇳
 
-### DigitalOcean Droplet
-
-```bash
-# Use provided deployment script
-bash deploy_digitalocean.sh
-```
-
-See [DIGITALOCEAN_DEPLOY.md](DIGITALOCEAN_DEPLOY.md) for detailed production setup.
-
-### Environment Variables
-
-```bash
-# Optional: Set custom Mapbox token
-export MAPBOX_TOKEN="your_token_here"
-
-# Optional: Database URL
-export DATABASE_URL="postgresql://user:pass@localhost/drishti"
-```
-
-## 🧪 Testing
-
-```bash
-# Test health endpoint
-curl http://localhost:8000/
-
-# Test route analysis
-curl -X POST http://localhost:8000/analyze_route \
-  -H "Content-Type: application/json" \
-  -d '{
-    "start_lat": 26.1445,
-    "start_lng": 91.7362,
-    "end_lat": 25.5788,
-    "end_lng": 91.8933
-  }'
-```
-
-## 📊 Performance Notes
-
-- **First Request:** 10-15 seconds (OSMnx downloads road network)
-- **Subsequent Requests:** 2-5 seconds (graph cached)
-- **Long Routes (>150km):** Uses bbox method for reliability
-- **Memory Usage:** ~1.5GB with DistilBERT loaded
-
-## 🔧 Troubleshooting
-
-**Issue:** OSMnx timeout errors  
-**Solution:** Increase timeout in `main.py`: `ox.settings.timeout = 180`
-
-**Issue:** Model not loading  
-**Solution:** Check `ai_models/distilbert/` contains all required files
-
-**Issue:** No route found  
-**Solution:** Check coordinates are within OSM coverage area
-
-## 📝 License
-
-Part of the DRISHTI-NE project. For educational and disaster response purposes.
+</div>
