@@ -1,285 +1,160 @@
-# 🎯 DRISHTI-NE Frontend: Disaster Response Interface
+<div align="center">
 
-> **Progressive Web App** - React + Vite + Capacitor for Cross-Platform Deployment
+# 📱 DRISHTI: TACTICAL INTERFACE
+### *The Frontline of Disaster Response & Mesh Communication*
 
-## 🔥 Overview
+![System Status](https://img.shields.io/badge/System-OPERATIONAL-emerald?style=for-the-badge&logo=statuspage&logoColor=white)
+![React](https://img.shields.io/badge/React-18.2-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Tailwind](https://img.shields.io/badge/Style-Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Android](https://img.shields.io/badge/Native-Android_Mesh-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 
-The DRISHTI-NE frontend provides a comprehensive disaster response interface for both **citizens** and **government command centers**. Built with React and designed for offline-first operation with mesh networking capabilities.
+<br />
 
-## 🛠️ Tech Stack
+> **"Chaos needs clarity."**
+>
+> *Visualizing the invisible mesh, mapping the danger, and bridging the gap between victim and rescue.*
 
-- **Framework:** React 18.2 + Vite 5.0
-- **Routing:** React Router DOM v6
-- **Styling:** Tailwind CSS 3.4 + clsx + tailwind-merge
-- **Maps:** Mapbox GL 3.1 + React-Map-GL 7.1 + Leaflet 1.9
-- **Icons:** Lucide React
-- **PDF:** jsPDF + jsPDF-AutoTable
-- **Mobile:** Capacitor 5.7 (Android/iOS)
-- **Capacitor Plugins:**
-  - Geolocation, Filesystem, Haptics
-  - App, Share
+[ **Launch Demo** ](http://localhost:5173) • [ **Architecture** ](#-system-architecture) • [ **Deploy** ](#-deployment-protocol)
 
-## 🌟 Key Features
+</div>
 
-### 1. **Citizen Dashboard** (`Dashboard.jsx`)
+---
 
-- Real-time risk assessment display
-- Voice command interface with AI fallback
-- Mesh network connectivity status
-- Quick SOS access
+## 📡 System Overview
 
-### 2. **Interactive Map View** (`MapView.jsx`)
+The **Drishti Frontend** is a high-performance, offline-first tactical dashboard designed for extreme conditions. It acts as the bridge between the human operator and the complex **Matrix Mesh Kernel** running on the device hardware.
 
-- AI-powered route analysis with risk visualization
-- Emergency hospital finder (18+ real NE India locations)
-- 3D terrain toggle
-- Voice navigation feedback
-- PDF route report generation
-- Backend connectivity monitoring
+Built with **Glassmorphism principles** and **Cinematic UX**, it ensures high visibility in low-light disaster zones while managing complex data streams from the offline mesh network and AI predictors.
 
-### 3. **Admin Command Center** (`AdminPanel.jsx`, `CommandDashboard.jsx`)
+### ⚡ Core Capabilities
+* **Offline-First Architecture:** UI functionality remains 100% accessible without an internet connection.
+* **Tactical Ops Map:** Real-time 3D terrain rendering using **Mapbox GL**, displaying safe routes and danger zones.
+* **Mesh Radar Visualization:** Visual interface for the invisible Bluetooth/Wi-Fi Direct mesh network nodes.
+* **Haptic Feedback Engine:** Uses device vibration motors to confirm SOS signals in high-stress environments.
 
-- Biometric authentication simulation
-- Live incident management
-- SITREP (Situation Report) generation
-- Drone reconnaissance interface (UI demo)
-- Authority approval workflows
+---
 
-### 4. **Offline Network View** (`NetworkView.jsx`, `OfflineNetworkScreen.jsx`)
+## 🛠️ The Tech Arsenal
 
-- P2P peer discovery simulation
-- Bluetooth mesh network status
-- DTN (Delay-Tolerant Networking) message relay
-- Signal strength monitoring
+Engineered for speed, responsiveness, and native hardware access.
 
-### 5. **Emergency SOS** (`SOSView.jsx`)
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Core Framework** | **React.js (Vite)** | High-performance Component Architecture |
+| **Styling Engine** | **Tailwind CSS** | Utility-first, responsive Glassmorphism design |
+| **Native Bridge** | **Capacitor.js** | Access to Android Bluetooth, GPS, and Filesystem |
+| **Mapping Engine** | **Mapbox GL / React-Map-GL** | 3D Terrain & Geospatial Visualization |
+| **Icons & Assets** | **Lucide React** | Lightweight, scalable vector iconography |
+| **State Logic** | **React Hooks + Context** | Real-time data synchronization |
 
-- One-tap emergency broadcast
-- Location sharing
-- Profile "Digital Dog Tag" for rescue teams
+---
 
-## 📁 Project Structure
+## 📂 System Architecture
 
-```
-frontend/
-├── src/
-│   ├── App.jsx                   # Main app shell with boot sequence
-│   ├── main.jsx                  # React entry point
-│   ├── i18n.jsx                  # Multi-language support
-│   ├── config.js                 # API endpoints configuration
-│   │
-│   ├── pages/                    # Route components
-│   │   ├── Dashboard.jsx         # Citizen main screen
-│   │   ├── MapView.jsx           # AI routing interface
-│   │   ├── SOSView.jsx           # Emergency screen
-│   │   ├── NetworkView.jsx       # Mesh network status
-│   │   ├── AdminPanel.jsx        # Admin login
-│   │   ├── CommandDashboard.jsx  # Government C&C
-│   │   ├── SettingsView.jsx      # App settings
-│   │   └── HomeScreen.jsx        # Landing page
-│   │
-│   ├── services/                 # Business logic layer
-│   │   ├── aiRoutingService.js   # Backend route API calls
-│   │   ├── voiceService.js       # Voice AI with fallback
-│   │   ├── meshNetworkService.js # Bluetooth mesh logic
-│   │   ├── peerDiscoveryService.js # P2P simulation
-│   │   ├── emergencyService.js   # SOS handling
-│   │   ├── locationService.js    # GPS utilities
-│   │   ├── profileService.js     # User data
-│   │   ├── offlineService.js     # Offline storage
-│   │   ├── ServiceManager.js     # Service orchestration
-│   │   └── ...                   # Other services
-│   │
-│   ├── components/               # Reusable UI components
-│   │   ├── InteractiveMap.jsx
-│   │   ├── MapboxMap.jsx
-│   │   ├── RiskMap.jsx
-│   │   └── MeshNetworkTest.jsx
-│   │
-│   ├── layouts/
-│   │   └── AppShell.jsx          # Common layout wrapper
-│   │
-│   ├── hooks/
-│   │   └── useMeshNetwork.js     # Mesh network hook
-│   │
-│   └── assets/                   # Images, icons, etc.
-│
-├── android/                      # Capacitor Android project
-├── public/                       # Static assets
-├── package.json
-├── vite.config.js               # Vite configuration
-├── tailwind.config.js           # Tailwind CSS config
-├── capacitor.config.json        # Capacitor config
-└── README.md
-```
-
-## 🚀 Development Setup
-
-### Prerequisites
-
-- Node.js 18+ (LTS recommended)
-- npm or yarn
-
-### 1. Install Dependencies
+The frontend is structured for modularity and rapid feature deployment:
 
 ```bash
-cd frontend
+frontend/
+├── 📂 android/             # 🤖 NATIVE KERNEL (Java/Kotlin)
+│   └── .../MeshPlugin.java # The Bluetooth Mesh Logic
+│
+├── 📂 src/
+│   ├── 📂 components/      # 🧩 UI MODULES
+│   │   ├── InteractiveMap.jsx  # 3D Terrain Renderer
+│   │   ├── RiskMap.jsx         # AI Heatmap Overlay
+│   │   └── MeshNetworkTest.jsx # Debugging Tools
+│   │
+│   ├── 📂 pages/           # 📱 TACTICAL SCREENS
+│   │   ├── Dashboard.jsx       # Command Center
+│   │   ├── MapView.jsx         # Navigation & Ops
+│   │   ├── SOSView.jsx         # Emergency Beacon
+│   │   ├── NetworkView.jsx     # Mesh Radar
+│   │   └── PredictionView.jsx  # AI Forecasting Interface
+│   │
+│   ├── 📂 services/        # ⚙️ LOGIC LAYERS
+│   │   ├── meshNetworkService.js # Bridge to Native Plugin
+│   │   ├── emergencyService.js   # SOS Logic
+│   │   └── locationService.js    # GPS Tracking
+│   │
+│   ├── App.jsx             # Root Logic & Boot Sequence
+│   └── main.jsx            # Entry Point
+│
+├── tailwind.config.js      # Design System Config
+└── vite.config.js          # Build Configuration
+```
+⚡ Deployment Protocol (Setup Guide)
+Follow this sequence to activate the Interface on your local machine.
+
+### 1️⃣ Prerequisite Check
+Node.js (v18+) installed.
+
+Android Studio (Required only for Mesh Network testing).
+
+### 2️⃣ Install Dependencies
+Load the tactical libraries.
+
+```bash
 npm install
 ```
+### 3️⃣ Configure Environment
+Create a .env file in the frontend root to link with external satellites.
 
-### 2. Run Development Server
+Code snippet
+VITE_MAPBOX_TOKEN=pk.your_mapbox_public_key
+VITE_BACKEND_URL=http://localhost:8000
+### 4️⃣ Activate Interface (Web Mode)
+Launch the development server. Note: Mesh features will be simulated in Web Mode.
 
 ```bash
 npm run dev
 ```
+🟢 Status: Dashboard active at http://localhost:5173
 
-**App runs at:** `http://localhost:5173`
+📲 Native Android Build (The Real Deal)
+To unlock the full power of the Offline Mesh Network, you must compile the app to Android hardware.
 
-### 3. Build for Production
+### 1️⃣ Build Web Assets
+Compile the React code into static assets.
 
 ```bash
 npm run build
 ```
-
-Output: `dist/` folder
-
-### 4. Preview Production Build
+### 2️⃣ Sync with Capacitor
+Transfer the web assets to the Android native project.
 
 ```bash
-npm run preview
+npx cap sync
 ```
-
-## 📱 Mobile Development (Capacitor)
-
-### Setup Android
+### 3️⃣ Launch Android Studio
+Open the native project IDE.
 
 ```bash
-# Install Capacitor CLI globally (optional)
-npm install -g @capacitor/cli
-
-# Sync web assets to Android
-npx cap sync android
-
-# Open in Android Studio
 npx cap open android
 ```
+Connect your physical Android device via USB (Debugging ON) and hit the Run button.
 
-### Build Android APK
+🎮 UX Philosophy: "The Glass Cockpit"
+The UI is designed to mimic modern military aviation displays:
 
-1. Open in Android Studio: `npx cap open android`
-2. Build → Build Bundle(s) / APK(s) → Build APK(s)
-3. APK location: `android/app/build/outputs/apk/debug/`
+Dark Mode Native: Reduces eye strain and battery consumption in the field.
 
-### iOS Setup (macOS only)
+High Contrast Alerts: Critical warnings (Landslide Risk, SOS) use distinct color spectrums (Red/Amber).
+
+Micro-Interactions: Buttons respond instantly with visual ripples and haptic feedback to confirm actions.
+
+🚀 Production Build
+To generate a production-ready folder for deployment to static hosting (Netlify/Vercel):
 
 ```bash
-npx cap sync ios
-npx cap open ios
+npm run build
 ```
+Output will be located in the dist/ directory.
 
-## ⚙️ Configuration
+<div align="center">
 
-### Backend API Endpoint ([src/config.js](src/config.js))
+🛡️ Visualizing Safety. Connecting the Unconnected.
+Frontend Engineered by Team Matrix
 
-```javascript
-export const API_BASE_URL = "https://your-backend.com";
-// or for local: "http://localhost:8000"
-```
+Jai Hind 🇮🇳
 
-### Mapbox Token ([src/pages/MapView.jsx](src/pages/MapView.jsx))
-
-Update `mapboxAccessToken` with your Mapbox API key.
-
-## 🎨 Key Technologies Explained
-
-### Vite Configuration
-
-- **Base: `./`** - Critical for Android relative paths
-- **Source maps enabled** - Better debugging on mobile
-- **Minify disabled** - Prevents crashes during demos
-- **Mapbox GL optimized** - Prevents "global is not defined" errors
-
-### Capacitor Plugins Used
-
-- **Geolocation** - GPS location for routing
-- **Haptics** - Vibration feedback for SOS
-- **Filesystem** - Offline data storage
-- **Share** - Route sharing functionality
-
-### Service Layer Architecture
-
-- **ServiceManager** - Centralized service initialization
-- **PlatformGuard** - Detects mobile vs. browser environment
-- **NetworkManager** - Monitors connectivity
-- **HardwareManager** - Hardware abstraction layer
-
-## 🧪 Testing
-
-### Desktop Browser Testing
-
-All features work in Chrome/Firefox/Edge with simulation modes:
-
-- Mesh networking simulated with random peer discovery
-- Voice commands use browser Speech Synthesis API
-- Geolocation uses browser API with fallback
-
-### Mobile Testing
-
-Best tested on actual Android device for:
-
-- Real Bluetooth Low Energy mesh
-- Accurate GPS
-- Haptic feedback
-- Native performance
-
-## 📊 Performance Notes
-
-- **First Load:** ~2-3 seconds (includes boot animation)
-- **Route Calculation:** 2-5 seconds (backend dependent)
-- **Map Rendering:** Instant with Mapbox WebGL
-- **Bundle Size:** ~2MB (minified production build)
-
-## 🐛 Troubleshooting
-
-**Issue:** White screen on Android  
-**Solution:** Ensure `base: './'` in `vite.config.js`
-
-**Issue:** Maps not loading  
-**Solution:** Check Mapbox token, verify `optimizeDeps` includes mapbox-gl
-
-**Issue:** Voice commands not working  
-**Solution:** Browser must support Web Speech API (Chrome/Edge supported)
-
-**Issue:** "Module not found" errors  
-**Solution:** Run `npm install` again, clear `node_modules` and reinstall
-
-## 🌍 Multi-Language Support
-
-Currently supports:
-
-- English (en)
-- Hindi (hi)
-- Assamese (as)
-
-Add more in [src/i18n.jsx](src/i18n.jsx)
-
-## 📝 NPM Scripts
-
-| Command                | Description                   |
-| ---------------------- | ----------------------------- |
-| `npm run dev`          | Start dev server (hot reload) |
-| `npm run build`        | Production build              |
-| `npm run preview`      | Preview production build      |
-| `npx cap sync`         | Sync web assets to mobile     |
-| `npx cap open android` | Open Android Studio           |
-
-## 🔒 Security Notes
-
-- All API calls go through service layer for centralized error handling
-- Offline data stored in browser localStorage (unencrypted)
-- Backend uses CORS middleware for cross-origin requests
-- No sensitive credentials stored in frontend code
-
-## 📄 License
-
-Part of the DRISHTI-NE project. For educational and disaster response purposes.
+</div>
