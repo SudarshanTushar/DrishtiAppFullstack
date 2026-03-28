@@ -48,14 +48,25 @@ const Login = ({ setAuth }) => {
     }, 1500);
   };
 
+  // 🛡️ Strict handler to block Android Copy/Paste Magnifier Crash
+  const disableContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
   return (
-    // ✅ ROOT: Safe Areas added (pt-safe-top, pb-safe-bottom)
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans transition-colors duration-500 pt-safe-top pb-safe-bottom">
+    // ✅ ROOT: Safe Areas added & Native Context Menu Blocked
+    <div 
+      className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans transition-colors duration-500 pt-safe-top pb-safe-bottom"
+      style={{ WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+      onContextMenu={disableContextMenu}
+    >
       
       {/* Background Grid (Adapts opacity) */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 dark:opacity-5 pointer-events-none"></div>
       
-      <div className="z-10 w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl relative transition-colors duration-500">
+      <div className="z-10 w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl relative transition-colors duration-500 pointer-events-auto">
         
         {/* GOVT HEADER */}
         <div className="flex flex-col items-center mb-8">
@@ -83,19 +94,23 @@ const Login = ({ setAuth }) => {
               type="text" 
               placeholder="e.g. admin" 
               className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 font-mono text-sm"
+              style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
               value={creds.id}
               onChange={(e) => setCreds({...creds, id: e.target.value})}
+              onContextMenu={disableContextMenu}
             />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] uppercase font-bold text-slate-500 ml-1">Secure PIN</label>
             <div className="relative">
                 <input 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 font-mono text-sm"
-                value={creds.pass}
-                onChange={(e) => setCreds({...creds, pass: e.target.value})}
+                  type="password" 
+                  placeholder="••••••••" 
+                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 font-mono text-sm"
+                  style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
+                  value={creds.pass}
+                  onChange={(e) => setCreds({...creds, pass: e.target.value})}
+                  onContextMenu={disableContextMenu}
                 />
                 <Lock className="absolute right-4 top-3 text-slate-400 dark:text-slate-600" size={16} />
             </div>
