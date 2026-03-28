@@ -1,4 +1,4 @@
-# Drishti-NE Backend - DigitalOcean Deployment Guide
+# TEAM MATRIX Backend - DigitalOcean Deployment Guide
 
 ## Quick Deploy
 

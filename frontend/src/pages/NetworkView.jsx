@@ -8,7 +8,6 @@ import { registerPlugin } from '@capacitor/core';
 import { Haptics, NotificationType } from '@capacitor/haptics';
 
 // 🔌 LINK TO YOUR NATIVE JAVA PLUGIN
-// Note: Ensure the plugin is properly linked in your Capacitor config
 const MeshNetwork = registerPlugin('MeshNetwork');
 
 const NetworkView = () => {
@@ -18,24 +17,27 @@ const NetworkView = () => {
   const [status, setStatus] = useState("IDLE"); // IDLE, SCANNING, ACTIVE, ERROR
   const logsEndRef = useRef(null);
 
-  // --- 1. SETUP LISTENERS ---
+  // --- 1. SETUP LISTENERS (FIXED API MAPPING) ---
   useEffect(() => {
-    // When a device connects via Bluetooth/Nearby
-    const peerListener = MeshNetwork.addListener('onPeerConnected', (data) => {
-        const nodeId = data.id.substring(0, 5);
+    // FIXED: Matched event name 'peerDiscovered' and property 'peerId' from Java
+    const peerListener = MeshNetwork.addListener('peerDiscovered', (data) => {
+        if (!data || !data.peerId) return;
+        const nodeId = data.peerId.substring(0, 5);
         addLog(`Link Established: Node ${nodeId}`, "system");
         setPeers(prev => {
-            if (prev.includes(data.id)) return prev;
-            return [...prev, data.id];
+            if (prev.includes(data.peerId)) return prev;
+            return [...prev, data.peerId];
         });
-        Haptics.notification({ type: NotificationType.Success });
+        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
     });
 
-    // When a message is received
-    const msgListener = MeshNetwork.addListener('onMessageReceived', (data) => {
+    // FIXED: Matched event name 'messageReceived' and property 'payload' from Java
+    const msgListener = MeshNetwork.addListener('messageReceived', (data) => {
+        if (!data) return;
         const senderId = data.sender ? data.sender.substring(0,4) : "UNK";
-        addLog(data.message, "rx", senderId);
-        Haptics.vibrate();
+        const msgText = data.payload || "";
+        addLog(msgText, "rx", senderId);
+        Haptics.vibrate().catch(() => {});
     });
 
     return () => {
@@ -59,20 +61,21 @@ const NetworkView = () => {
 
   const activateMesh = async () => {
     setStatus("SCANNING");
-    // Initial haptic feedback
-    await Haptics.impact({ style: 'medium' });
+    try {
+        await Haptics.impact({ style: 'medium' });
+    } catch (e) {} // Ignore if device doesn't support haptics
     
-    // Simulate scanning delay for UX (Scanning feels real)
     setTimeout(async () => {
         try {
-            await MeshNetwork.startDiscovery();
+            // Native Java execution
+            await MeshNetwork.startMesh();
             setStatus("ACTIVE");
             addLog("Bluetooth Radio Active. Scanning for local mesh nodes...", "system");
-            await Haptics.notification({ type: NotificationType.Success });
+            try { await Haptics.notification({ type: NotificationType.Success }); } catch (e) {}
         } catch (e) {
             setStatus("ERROR");
             addLog("Initialization Failed: " + e.message, "error");
-            await Haptics.notification({ type: NotificationType.Error });
+            try { await Haptics.notification({ type: NotificationType.Error }); } catch(err) {}
         }
     }, 1500);
   };
@@ -81,13 +84,14 @@ const NetworkView = () => {
     if (!inputText.trim()) return;
     
     const msgToSend = inputText;
-    setInputText(""); // Clear input immediately for responsiveness
+    setInputText(""); // Clear input immediately
     
-    // UI Update immediately (Optimistic UI)
+    // Optimistic UI Update
     addLog(msgToSend, "tx");
     
     try {
-        await MeshNetwork.broadcastMessage({ message: msgToSend });
+        // FIXED: Matched method 'sendMessage' and parameter 'payload' from Java
+        await MeshNetwork.sendMessage({ payload: msgToSend });
     } catch (e) {
         addLog("Send Failed: " + e.message, "error");
     }
@@ -96,11 +100,10 @@ const NetworkView = () => {
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans overflow-hidden">
       
-      {/* --- HEADER (Glassmorphism) --- */}
+      {/* --- HEADER --- */}
       <div className="flex-none px-4 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-20 shadow-sm">
         <div className="flex justify-between items-center">
             
-            {/* Left: Title & Status */}
             <div className="flex items-center gap-3">
                 <div className={`p-2.5 rounded-xl border transition-all duration-500 ${
                     status === "ACTIVE" 
@@ -126,14 +129,11 @@ const NetworkView = () => {
                 </div>
             </div>
             
-            {/* Right: Peers & Internet Status */}
             <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
                     <Users size={12} className="text-slate-500 dark:text-slate-400"/>
                     <span className="text-xs font-bold font-mono">{peers.length}</span>
                 </div>
-                
-                {/* No Internet Badge */}
                 <div className="flex items-center gap-1 opacity-60">
                     <WifiOff size={10} className="text-slate-500"/>
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Offline Mode</span>
@@ -145,12 +145,11 @@ const NetworkView = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <div className="flex-1 relative overflow-hidden bg-slate-50 dark:bg-slate-950">
           
-          {/* BACKGROUND PATTERN */}
           <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" 
-               style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+                style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
           </div>
 
-          {/* 1. IDLE STATE (Start Screen) */}
+          {/* 1. IDLE STATE */}
           {status === "IDLE" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center z-10 animate-in fade-in zoom-in duration-500">
                 <div className="relative mb-8">
@@ -158,7 +157,6 @@ const NetworkView = () => {
                     <div className="relative bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
                         <Smartphone size={48} className="text-slate-400 dark:text-slate-500" strokeWidth={1.5} />
                     </div>
-                    {/* Badge */}
                     <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
                         BETA
                     </div>
@@ -198,7 +196,6 @@ const NetworkView = () => {
           {/* 3. ACTIVE CHAT STATE */}
           {(status === "ACTIVE" || status === "ERROR") && (
               <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
-                  {/* Encryption Notice */}
                   <div className="flex justify-center mb-4">
                       <div className="bg-slate-200/50 dark:bg-slate-900/50 backdrop-blur text-slate-500 dark:text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-800 flex items-center gap-1.5">
                           <ShieldAlert size={10} />
@@ -219,14 +216,12 @@ const NetworkView = () => {
                           log.type === "rx" ? "items-start" : "items-center"
                       }`}>
                           
-                          {/* SENDER LABEL (Only for RX) */}
                           {log.type === "rx" && (
                               <span className="text-[10px] font-bold text-slate-400 ml-1 mb-1 font-mono">
                                   NODE_{log.senderId}
                               </span>
                           )}
 
-                          {/* BUBBLE */}
                           <div className={`max-w-[80%] px-4 py-3 text-sm shadow-sm relative ${
                               log.type === "tx" 
                                 ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm" 
@@ -234,15 +229,13 @@ const NetworkView = () => {
                                     ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-tl-sm"
                                     : log.type === "error"
                                         ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl w-full text-center"
-                                        : "bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wide py-1 px-3 rounded-full border border-slate-200 dark:border-slate-700 backdrop-blur-sm" // System
+                                        : "bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wide py-1 px-3 rounded-full border border-slate-200 dark:border-slate-700 backdrop-blur-sm"
                           }`}>
-                              {/* Icon for System Logs */}
                               {log.type === "system" && <Zap size={10} className="inline mr-1 -mt-0.5"/>}
                               {log.type === "error" && <AlertCircle size={14} className="inline mr-1 -mt-0.5"/>}
                               
                               {log.msg}
 
-                              {/* Timestamp for Messages */}
                               {(log.type === "tx" || log.type === "rx") && (
                                   <div className={`text-[9px] text-right mt-1 font-mono opacity-70 ${
                                       log.type === "tx" ? "text-blue-100" : "text-slate-400"
@@ -259,7 +252,7 @@ const NetworkView = () => {
           )}
       </div>
 
-      {/* --- INPUT AREA (Fixed Bottom) --- */}
+      {/* --- INPUT AREA --- */}
       <div className={`p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 transition-transform duration-500 ${
           status === "ACTIVE" ? "translate-y-0" : "translate-y-full"
       }`}>

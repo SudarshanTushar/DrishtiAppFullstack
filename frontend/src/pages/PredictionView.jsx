@@ -7,14 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 
 // ✅ LIVE SERVER CONFIG
-const API_URL = "https://157.245.111.124.nip.io/api/predict-ne";
+const API_URL = "https://134.209.145.64.nip.io/api/predict-ne";
 
 const PredictionView = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  // 📝 Input State
+  // 📝 Input State (UI Controls)
   const [formData, setFormData] = useState({
     rainfall: 150,      // mm
     soil_moisture: 60,  // %
@@ -22,7 +22,6 @@ const PredictionView = () => {
   });
 
   // --- HELPER: Get Intensity Color ---
-  // Returns color based on value severity for visual feedback
   const getIntensityColor = (val, max) => {
     const percentage = val / max;
     if (percentage < 0.4) return "text-emerald-500";
@@ -45,12 +44,30 @@ const PredictionView = () => {
     setLoading(true);
     setResult(null);
 
+    // 🔧 SAFE PAYLOAD TRANSFORMER
+    // UI variables ko AI Model ke required variables (latitude, longitude, river_level) se map kar rahe hain
+    // Taaki Python Pandas DataFrame mein KeyError na aaye.
+    const safePayload = {
+      latitude: 26.2006,           // Dummy static required by XGBoost
+      longitude: 92.9376,          // Dummy static required by XGBoost
+      rainfall: formData.rainfall, // Dynamic from UI
+      river_level: 8.4             // Dummy static required by XGBoost
+    };
+
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(safePayload)
       });
+
+      // Agar response ajeeb aata hai (like Nginx HTML page instead of JSON)
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -59,21 +76,28 @@ const PredictionView = () => {
         if (data.data.risk_level === "HIGH") {
           toast.error("CRITICAL RISK DETECTED!", { 
             icon: '🚨', 
-            style: { background: '#ef4444', color: '#fff' } 
+            style: { background: '#ef4444', color: '#fff', fontWeight: 'bold' } 
           });
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // SOS Vibe
         } else {
           toast.success("Conditions Stable", { 
             icon: '✅',
-            style: { background: '#10b981', color: '#fff' }
+            style: { background: '#10b981', color: '#fff', fontWeight: 'bold' }
           });
         }
       } else {
-        toast.error("Prediction Failed");
+        toast.error(`Backend Error: ${data.message || 'Prediction Failed'}`, {
+          style: { background: '#000', color: '#ff4444' }
+        });
       }
     } catch (error) {
-      console.error(error);
-      toast.error("Server Offline? Check Connection.");
+      console.error("CRITICAL API FAILURE:", error);
+      // 🚨 TRUE ERROR EXPOSURE
+      // Ye exact network problem screen par dikhayega (e.g., Failed to fetch = CORS/DNS Drop)
+      toast.error(`System Error: ${error.message}`, { 
+        duration: 8000,
+        style: { background: '#000', color: '#ff4444', fontWeight: 'bold' }
+      });
     } finally {
       setLoading(false);
     }
@@ -103,7 +127,7 @@ const PredictionView = () => {
         </div>
       </div>
 
-      {/* 🎛️ INPUT CARD (Glassmorphism) */}
+      {/* 🎛️ INPUT CARD */}
       <div className="relative z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         
         {/* Rainfall Input */}
@@ -193,7 +217,7 @@ const PredictionView = () => {
         </button>
       </div>
 
-      {/* 📊 RESULT CARD (Cinematic Reveal) */}
+      {/* 📊 RESULT CARD */}
       {result && (
         <div className={`relative z-20 mt-6 p-1 rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-10 duration-700 ${
           result.risk_level === "HIGH" 

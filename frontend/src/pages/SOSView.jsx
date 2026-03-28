@@ -5,7 +5,7 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { useI18n } from "../i18n";
 
 // 🔗 LIVE BACKEND URL
-const API_URL = "https://157.245.111.124.nip.io/api/alert";
+const API_URL = "https://134.209.145.64.nip.io/api/alert";
 
 const SOSView = () => {
   const { t } = useI18n();

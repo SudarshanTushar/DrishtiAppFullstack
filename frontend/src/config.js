@@ -1,5 +1,5 @@
 // 🚀 DIGITALOCEAN LIVE SERVER (HTTP Only)
-export const API_BASE_URL = "https://157.245.111.124.nip.io";
+export const API_BASE_URL = "https://134.209.145.64.nip.io";
 
 // ✅ SafeFetch Export (Zaroori hai kyunki Dashboard.jsx isko dhoond raha hai)
 export const safeFetch = async (endpoint, options = {}) => {

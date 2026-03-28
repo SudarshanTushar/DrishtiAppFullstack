@@ -2,19 +2,20 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "com.teammatrix.disasterapp"
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    
+    // ✅ FIXED: Hardcoded to API 33 to support NEARBY_WIFI_DEVICES permission
+    compileSdkVersion 33
     
     defaultConfig {
         applicationId "com.teammatrix.disasterapp"
         minSdkVersion 24  // Required for Google Nearby Connections
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        targetSdkVersion 33 // Synced with compile SDK
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     
@@ -35,14 +36,14 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     
-    // ✅ STANDARD ANDROID LIBS (JAVA)
+    // ✅ STANDARD ANDROID LIBS
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
 
-    // ✅ GOOGLE NEARBY (For Mesh Network)
+    // ✅ GOOGLE NEARBY (For Mesh Network DTN)
     implementation 'com.google.android.gms:play-services-nearby:19.0.0'
     
     // Tests

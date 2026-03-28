@@ -1,4 +1,4 @@
-# 🚁 DRISHTI-NE: Disaster Response & Intelligence System
+# 🚁 TEAM MATRIX: Disaster Response & Intelligence System
 
 > _Survive. Connect. Recover._
 
@@ -12,7 +12,7 @@ During floods (like Sikkim 2023), standard communication fails within **4 hours*
 - **No Data:** Rescue teams work blindly.
 - **No Coordination:** Government relies on outdated manual reports.
 
-## ⚡ The Solution: Drishti-NE
+## ⚡ The Solution: TEAM MATRIX
 
 A fully offline-capable ecosystem combining **AI-Powered Routing**, **Real-time Risk Assessment**, and **Government Command & Control**. The system provides intelligent disaster response with mesh networking as a fail-safe when infrastructure collapses.
 

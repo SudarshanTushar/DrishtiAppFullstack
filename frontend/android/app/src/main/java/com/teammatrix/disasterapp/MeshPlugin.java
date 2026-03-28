@@ -2,40 +2,47 @@ package com.teammatrix.disasterapp;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast; 
+import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
+
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.*;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-@CapacitorPlugin(name = "MeshNetwork")
+@CapacitorPlugin(
+    name = "MeshNetwork",
+    permissions = {
+        @Permission(strings = {Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT}, alias = "bluetooth"),
+        @Permission(strings = {Manifest.permission.ACCESS_FINE_LOCATION}, alias = "location"),
+        @Permission(strings = {Manifest.permission.NEARBY_WIFI_DEVICES}, alias = "wifi")
+    }
+)
 public class MeshPlugin extends Plugin {
 
-    // ✅ Best Strategy for M-to-N Mesh (Works Offline via Bluetooth/WiFi-Direct)
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
-    
-    // ✅ New ID to force fresh connections
-    private static final String SERVICE_ID = "com.drishti.mesh.v5"; 
+    private static final String SERVICE_ID = "com.drishti.mesh.v8"; // Force clean cache
     
     private final String myNickname = "RescueNode-" + (int)(Math.random() * 9000 + 1000);
     private final List<String> connectedEndpoints = new ArrayList<>();
     private ConnectionsClient connectionsClient;
+    private boolean isMeshRunning = false;
 
     @Override
     public void load() {
         super.load();
-        // Use Activity Context to fix NFC crashes (Even if we rely on Bluetooth)
         Activity activity = getActivity();
         if (activity != null) {
             connectionsClient = Nearby.getConnectionsClient(activity);
@@ -45,27 +52,88 @@ public class MeshPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void startDiscovery(PluginCall call) {
+    public void startMesh(PluginCall call) {
         if (!hasPermissions()) {
-            call.reject("Permissions missing. Please allow Location/Bluetooth.");
+            call.reject("Permissions missing. Allow Location & Bluetooth.");
             return;
         }
 
-        // 1. Reset Everything (Crucial Step)
-        stopAll();
+        internalRestartMesh();
+        isMeshRunning = true;
+        
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        ret.put("message", "Mesh hardware activated");
+        call.resolve(ret);
+    }
 
+    @PluginMethod
+    public void stopMesh(PluginCall call) {
+        stopAll();
+        isMeshRunning = false;
+        
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        ret.put("message", "Mesh hardware deactivated");
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void sendMessage(PluginCall call) {
+        String payloadStr = call.getString("payload");
+        if (payloadStr == null) {
+            call.reject("Payload missing");
+            return;
+        }
+
+        Payload payload = Payload.fromBytes(payloadStr.getBytes(StandardCharsets.UTF_8));
+        connectionsClient.sendPayload(connectedEndpoints, payload);
+        
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        ret.put("messageId", "msg-" + System.currentTimeMillis());
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void getPeers(PluginCall call) {
+        JSArray peersArray = new JSArray();
+        for(String endpoint : connectedEndpoints) {
+            JSObject peer = new JSObject();
+            peer.put("id", endpoint);
+            peer.put("lastSeen", System.currentTimeMillis());
+            peersArray.put(peer);
+        }
+        JSObject ret = new JSObject();
+        ret.put("peers", peersArray);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void getStatus(PluginCall call) {
+        JSObject status = new JSObject();
+        status.put("isRunning", isMeshRunning);
+        status.put("peerCount", connectedEndpoints.size());
+        
+        JSObject ret = new JSObject();
+        ret.put("status", status);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void getMessages(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("messages", new JSArray());
+        call.resolve(ret);
+    }
+
+    private void internalRestartMesh() {
+        stopAll();
         getActivity().runOnUiThread(() -> 
             Toast.makeText(getContext(), "Radio Active: " + myNickname, Toast.LENGTH_SHORT).show()
         );
-
-        // 2. Start Advertising (I am here!)
         startAdvertisingProcess();
-
-        // 3. ⏳ WAIT 2 SECONDS before Scanning (Crucial Fix)
-        // Ek saath scan aur advertise karne se Bluetooth chip atak jati hai.
         new Handler(Looper.getMainLooper()).postDelayed(this::startDiscoveryProcess, 2000);
-
-        call.resolve();
     }
 
     private void stopAll() {
@@ -79,47 +147,22 @@ public class MeshPlugin extends Plugin {
 
     private void startAdvertisingProcess() {
         AdvertisingOptions options = new AdvertisingOptions.Builder()
-            .setStrategy(STRATEGY)
-            .setLowPower(false) // ⚡ HIGH POWER MODE (Better Range)
-            .build();
-        
+            .setStrategy(STRATEGY).setLowPower(false).build();
         connectionsClient.startAdvertising(myNickname, SERVICE_ID, connectionLifecycleCallback, options)
-            .addOnSuccessListener(unused -> System.out.println("✅ Advertising Started"))
-            .addOnFailureListener(e -> System.err.println("❌ Adv Error: " + e.getMessage()));
+            .addOnFailureListener(e -> System.err.println("Adv Error: " + e.getMessage()));
     }
 
     private void startDiscoveryProcess() {
         DiscoveryOptions options = new DiscoveryOptions.Builder()
-            .setStrategy(STRATEGY)
-            .setLowPower(false) // ⚡ HIGH POWER MODE
-            .build();
-        
+            .setStrategy(STRATEGY).setLowPower(false).build();
         connectionsClient.startDiscovery(SERVICE_ID, endpointDiscoveryCallback, options)
-            .addOnSuccessListener(unused -> System.out.println("✅ Discovery Started"))
-            .addOnFailureListener(e -> System.err.println("❌ Disc Error: " + e.getMessage()));
+            .addOnFailureListener(e -> System.err.println("Disc Error: " + e.getMessage()));
     }
-
-    @PluginMethod
-    public void broadcastMessage(PluginCall call) {
-        String msg = call.getString("message");
-        if (msg == null) return;
-
-        Payload payload = Payload.fromBytes(msg.getBytes(StandardCharsets.UTF_8));
-        connectionsClient.sendPayload(connectedEndpoints, payload);
-        call.resolve();
-    }
-
-    // --- 🤝 CONNECTION LOGIC ---
 
     private final ConnectionLifecycleCallback connectionLifecycleCallback = new ConnectionLifecycleCallback() {
         @Override
         public void onConnectionInitiated(String endpointId, ConnectionInfo info) {
-            // ⚡ Auto-Accept (No Popups)
             connectionsClient.acceptConnection(endpointId, payloadCallback);
-            
-            getActivity().runOnUiThread(() -> 
-                Toast.makeText(getContext(), "Linking: " + info.getEndpointName(), Toast.LENGTH_SHORT).show()
-            );
         }
 
         @Override
@@ -127,20 +170,10 @@ public class MeshPlugin extends Plugin {
             if (result.getStatus().isSuccess()) {
                 if (!connectedEndpoints.contains(endpointId)) {
                     connectedEndpoints.add(endpointId);
-                    
                     JSObject ret = new JSObject();
-                    ret.put("id", endpointId);
-                    notifyListeners("onPeerConnected", ret);
-                    
-                    getActivity().runOnUiThread(() -> 
-                        Toast.makeText(getContext(), "✅ Connected!", Toast.LENGTH_SHORT).show()
-                    );
-                }
-            } else {
-                // Retry logic
-                System.out.println("⚠️ Connection Failed. Retrying...");
-                if (connectedEndpoints.isEmpty()) {
-                    startDiscoveryProcess();
+                    ret.put("peerId", endpointId);
+                    notifyListeners("peerDiscovered", ret);
+                    getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Connected: " + endpointId, Toast.LENGTH_SHORT).show());
                 }
             }
         }
@@ -148,12 +181,11 @@ public class MeshPlugin extends Plugin {
         @Override
         public void onDisconnected(String endpointId) {
             connectedEndpoints.remove(endpointId);
-            getActivity().runOnUiThread(() -> 
-                Toast.makeText(getContext(), "❌ Link Lost. Reconnecting...", Toast.LENGTH_SHORT).show()
-            );
-            // 🔄 Auto-Heal: Restart Mesh
-            stopAll();
-            startDiscovery(null);
+            JSObject ret = new JSObject();
+            ret.put("peerId", endpointId);
+            notifyListeners("peerLost", ret);
+            getActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Link Lost. Reconnecting...", Toast.LENGTH_SHORT).show());
+            internalRestartMesh(); 
         }
     };
 
@@ -164,30 +196,21 @@ public class MeshPlugin extends Plugin {
                 String msg = new String(payload.asBytes(), StandardCharsets.UTF_8);
                 JSObject ret = new JSObject();
                 ret.put("sender", endpointId);
-                ret.put("message", msg);
-                notifyListeners("onMessageReceived", ret);
+                ret.put("payload", msg);
+                ret.put("timestamp", System.currentTimeMillis());
+                notifyListeners("messageReceived", ret);
             }
         }
         @Override
         public void onPayloadTransferUpdate(String endpointId, PayloadTransferUpdate update) {}
     };
 
-    // --- 🔍 TIE-BREAKER (Prevents "Double Request" Collision) ---
     private final EndpointDiscoveryCallback endpointDiscoveryCallback = new EndpointDiscoveryCallback() {
         @Override
         public void onEndpointFound(String endpointId, DiscoveredEndpointInfo info) {
-            String theirNickname = info.getEndpointName();
-            
-            // Logic: Sirf wo request karega jiska naam Alphabetically Bada hai.
-            // Agar dono ek saath request bhejenge toh fail hoga. Isliye ye zaroori hai.
-            if (myNickname.compareTo(theirNickname) > 0) {
-                System.out.println("⚡ Requesting Connection -> " + theirNickname);
-                connectionsClient.requestConnection(myNickname, endpointId, connectionLifecycleCallback);
-            } else {
-                System.out.println("⏳ Waiting for " + theirNickname + " to request me...");
-            }
+            connectionsClient.requestConnection(myNickname, endpointId, connectionLifecycleCallback)
+                .addOnFailureListener(e -> System.out.println("Collision ignored"));
         }
-
         @Override
         public void onEndpointLost(String endpointId) {}
     };
@@ -195,23 +218,12 @@ public class MeshPlugin extends Plugin {
     private boolean hasPermissions() {
         String[] perms;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-             perms = new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.NEARBY_WIFI_DEVICES
-            };
+             perms = new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES };
         } else {
-             perms = new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION
-            };
+             perms = new String[]{ Manifest.permission.ACCESS_FINE_LOCATION };
         }
-
         for (String p : perms) {
-            if (ActivityCompat.checkSelfPermission(getContext(), p) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
+            if (ActivityCompat.checkSelfPermission(getContext(), p) != PackageManager.PERMISSION_GRANTED) return false;
         }
         return true;
     }

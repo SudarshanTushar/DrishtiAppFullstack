@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ====================================================
-# 🚀 DRISHTI-NE: WAR ROOM DEPLOYMENT SCRIPT
+# 🚀 TEAM MATRIX: WAR ROOM DEPLOYMENT SCRIPT
 # Target: Ubuntu / DigitalOcean Droplet
 # ====================================================
 

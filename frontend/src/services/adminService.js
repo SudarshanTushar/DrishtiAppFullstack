@@ -1,5 +1,5 @@
 // 🚀 HACKATHON MODE: Force Login even if Server Fails
-const DIRECT_API_URL = "https://157.245.111.124.nip.io"; 
+const DIRECT_API_URL = "https://134.209.145.64.nip.io"; 
 
 let ADMIN_TOKEN = null;
 

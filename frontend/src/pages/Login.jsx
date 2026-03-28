@@ -66,7 +66,7 @@ const Login = ({ setAuth }) => {
                className="w-10 h-10 opacity-80 dark:invert"
              />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-widest text-center">DRISHTI-NE</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-widest text-center">TEAM MATRIX</h1>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] font-bold mt-1 text-center">
             Disaster Response Integrated System
           </p>

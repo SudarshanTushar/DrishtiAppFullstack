@@ -7,7 +7,7 @@
     "cleartext": true,
     "allowNavigation": [
       "192.168.*.*",
-      "157.245.111.124.nip.io"
+      "134.209.145.64.nip.io"
     ]
   },
   "plugins": {

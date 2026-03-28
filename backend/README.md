@@ -1,10 +1,10 @@
-# 🧠 DRISHTI-NE Backend: AI Routing Engine
+# 🧠 TEAM MATRIX Backend: AI Routing Engine
 
 > **Real Data AI Routing Engine** - DistilBERT + OSMnx + NetworkX
 
 ## 🔥 Architecture Overview
 
-This backend powers the **DRISHTI-NE Disaster Response System** with real AI-driven route analysis and risk assessment.
+This backend powers the **TEAM MATRIX Disaster Response System** with real AI-driven route analysis and risk assessment.
 
 ### Core Technologies
 
@@ -233,4 +233,4 @@ curl -X POST http://localhost:8000/analyze_route \
 
 ## 📝 License
 
-Part of the DRISHTI-NE project. For educational and disaster response purposes.
+Part of the TEAM MATRIX project. For educational and disaster response purposes.

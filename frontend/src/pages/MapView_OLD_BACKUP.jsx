@@ -38,7 +38,7 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
 // ⚠️ PRODUCTION SERVER (DigitalOcean with Caddy SSL)
-const API_URL = "https://157.245.111.124.nip.io";
+const API_URL = "https://134.209.145.64.nip.io";
 const MAPBOX_TOKEN =
   "pk.eyJ1IjoidHVzaGFyZ2FkaGUiLCJhIjoiY21rbnlpNjZqMDBtbDNmc2FmZW9idWwzdSJ9.5kKsUK-lEQmpM5kJrtvkDg";
 
@@ -488,7 +488,7 @@ const MapView = () => {
                 <h1 className="text-white font-black flex items-center gap-2.5 text-2xl mb-1">
                   <Brain className="text-blue-500" size={28} />
                   <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                    Drishti-NE
+                    TEAM-MATRIX
                   </span>
                 </h1>
                 <p className="text-[11px] text-slate-400 font-medium tracking-wide">

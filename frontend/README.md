@@ -1,10 +1,10 @@
-# 🎯 DRISHTI-NE Frontend: Disaster Response Interface
+# 🎯 TEAM MATRIX Frontend: Disaster Response Interface
 
 > **Progressive Web App** - React + Vite + Capacitor for Cross-Platform Deployment
 
 ## 🔥 Overview
 
-The DRISHTI-NE frontend provides a comprehensive disaster response interface for both **citizens** and **government command centers**. Built with React and designed for offline-first operation with mesh networking capabilities.
+The TEAM MATRIX frontend provides a comprehensive disaster response interface for both **citizens** and **government command centers**. Built with React and designed for offline-first operation with mesh networking capabilities.
 
 ## 🛠️ Tech Stack
 
@@ -282,4 +282,4 @@ Add more in [src/i18n.jsx](src/i18n.jsx)
 
 ## 📄 License
 
-Part of the DRISHTI-NE project. For educational and disaster response purposes.
+Part of the TEAM MATRIX project. For educational and disaster response purposes.

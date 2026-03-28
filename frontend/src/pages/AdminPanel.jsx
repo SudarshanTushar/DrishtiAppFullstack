@@ -8,7 +8,7 @@ import {
 import { toast } from "react-hot-toast";
 
 // ✅ LIVE BACKEND CONNECTION
-const API_URL = "https://157.245.111.124.nip.io";
+const API_URL = "https://134.209.145.64.nip.io";
 
 // 🎨 VISUAL MOCK DATA
 const HAWA_DATA = [
@@ -116,7 +116,7 @@ const AdminPanel = () => {
             <ShieldAlert className="text-white w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">DRISHTI-NE <span className="text-blue-600 dark:text-blue-500">COMMAND</span></h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">TEAM MATRIX <span className="text-blue-600 dark:text-blue-500">COMMAND</span></h1>
             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">
               State Emergency Operation Center • Govt of Meghalaya • Auth: ADMIN
             </p>
@@ -301,7 +301,7 @@ const AdminPanel = () => {
       
       {/* FOOTER */}
       <footer className="fixed bottom-0 w-full bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 p-2 text-center text-[9px] text-slate-500 uppercase tracking-widest z-50 transition-colors">
-        Drishti-NE v2.4 (RC-1) • Secure TLS 1.3 Connection • Authorized Personnel Only • Compliant with DPDP Act 2023
+        Team Matrix v2.4 (RC-1) • Secure TLS 1.3 Connection • Authorized Personnel Only • Compliant with DPDP Act 2023
       </footer>
 
     </div>

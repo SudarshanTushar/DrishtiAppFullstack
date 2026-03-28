@@ -433,7 +433,7 @@ const CommandDashboard = () => {
             <div className="flex flex-col md:flex-row items-center justify-between p-3 border-b border-slate-200 bg-slate-50 gap-2">
               <div className="w-full md:w-auto">
                 <p className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                  <Lock size={14} className="text-red-600"/> SITREP 001 - OPS DRISHTI-NE
+                  <Lock size={14} className="text-red-600"/> SITREP 001 - OPS TEAM MATRIX
                 </p>
                 <p className="text-[10px] text-slate-500 font-mono hidden md:block">
                   UNIT: {sitrepData?.unit || "NE-COMMAND"} | DTG: {sitrepData?.dtg || "WAITING..."}
@@ -511,7 +511,7 @@ const CommandDashboard = () => {
                       <div className="text-center border-b border-black pb-2 mb-4">
                           <p className="text-[8px] font-serif font-bold uppercase mb-1">Security Classification: RESTRICTED</p>
                           <h2 className="text-lg font-serif font-bold tracking-wide">SITUATION REPORT</h2>
-                          <p className="text-[8px] font-serif uppercase text-slate-600">DRISHTI-NE | AI-Based Decision Support</p>
+                          <p className="text-[8px] font-serif uppercase text-slate-600">TEAM MATRIX | AI-Based Decision Support</p>
                       </div>
 
                       {/* Metadata */}

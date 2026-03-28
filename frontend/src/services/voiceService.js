@@ -1,7 +1,7 @@
 // src/services/voiceService.js
 
 // 🚀 DIRECT CONNECTION TO YOUR CLOUD SERVER
-const DIRECT_API_URL = "https://157.245.111.124.nip.io";
+const DIRECT_API_URL = "https://134.209.145.64.nip.io";
 
 export const voiceService = {
   async processVoiceCommand(audioBlob) {

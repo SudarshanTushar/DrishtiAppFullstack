@@ -58,7 +58,7 @@ def generate_synthetic_data(n_samples=5000):
     return df
 
 def train():
-    banner("DRISHTI-NE: MODEL TRAINING PIPELINE v2.1")
+    banner("TEAM MATRIX: MODEL TRAINING PIPELINE v2.1")
     
     # 1. LOAD DATA
     if os.path.exists(DATA_PATH):
